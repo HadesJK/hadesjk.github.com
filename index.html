@@ -334,6 +334,8 @@
 <p>现实中很少会遇到其它日志框架，如果遇到了jul，因为这是jdk的一部分，那么肯定不能在pom中将它排除掉。</p>
 <p>需要在代码中加入：</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">SLF4JBridgeHandler.removeHandlersForRootLogger();</div><div class="line">SLF4JBridgeHandler.install();</div></pre></td></tr></table></figure>
+<p>在pom中加入转接依赖：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jul-to-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;slf4j.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div></pre></td></tr></table></figure>
 <p>然后就可以将jul的日志转到slf4j了，但是性能不好，官网有提示。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>用一副图来总结用法。</p>
 <p><img src="/images/java/slf4j-1.jpg" alt=""></p>
