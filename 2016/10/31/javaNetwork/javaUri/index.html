@@ -1,0 +1,605 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.0.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.2" />
+
+
+
+
+
+
+<meta name="description" content="URI(Uniform Resource Identifier) 统一资源标识符
+形式URI的最常见的形式是统一资源定位符。
+URL是一种URI，所以两者非常相似，但是还是有点区别。
+uri最多包含3个部分：scheme:scheme-specific-part#fragment
+如：1234uri = new URI(&quot;abc://username:password@www.example.co">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java.net.URI">
+<meta property="og:url" content="http://yoursite.com/2016/10/31/javaNetwork/javaUri/index.html">
+<meta property="og:site_name" content="一饭的博客">
+<meta property="og:description" content="URI(Uniform Resource Identifier) 统一资源标识符
+形式URI的最常见的形式是统一资源定位符。
+URL是一种URI，所以两者非常相似，但是还是有点区别。
+uri最多包含3个部分：scheme:scheme-specific-part#fragment
+如：1234uri = new URI(&quot;abc://username:password@www.example.co">
+<meta property="og:updated_time" content="2016-10-31T05:24:25.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="java.net.URI">
+<meta name="twitter:description" content="URI(Uniform Resource Identifier) 统一资源标识符
+形式URI的最常见的形式是统一资源定位符。
+URL是一种URI，所以两者非常相似，但是还是有点区别。
+uri最多包含3个部分：scheme:scheme-specific-part#fragment
+如：1234uri = new URI(&quot;abc://username:password@www.example.co">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    }
+  };
+</script>
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2016/10/31/javaNetwork/javaUri/"/>
+
+
+  <title> java.net.URI | 一饭的博客 </title>
+</head>
+
+<body itemscope itemtype="//schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="//schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">一饭的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">对不起没有</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/me" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于我
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                java.net.URI
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2016-10-31T10:47:11+08:00" content="2016-10-31">
+              2016-10-31
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/java-网络编程/" itemprop="url" rel="index">
+                    <span itemprop="name">java 网络编程</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>URI(Uniform Resource Identifier) 统一资源标识符</p>
+<h1 id="形式"><a href="#形式" class="headerlink" title="形式"></a>形式</h1><p>URI的最常见的形式是统一资源定位符。</p>
+<p>URL是一种URI，所以两者非常相似，但是还是有点区别。</p>
+<p>uri最多包含3个部分：<br>scheme:scheme-specific-part#fragment</p>
+<p>如：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">uri = new URI("abc://username:password@www.example.com:123/path/data?key=苹果&amp;key2=肉#fragid1");</div><div class="line">scheme:				abc</div><div class="line">schemeSpecificPart:		//username:password@www.example.com:123/path/data?key=苹果&amp;key2=肉</div><div class="line">fragment:			fragid1</div></pre></td></tr></table></figure></p>
+<p>没有模式部分的称为相对URI<br>有模式部分的称为绝对URI<br>可以用方法<strong>public boolean isAbsolute()</strong>判断<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isAbsolute</span><span class="params">()</span> </span>&#123;</div><div class="line">   <span class="keyword">return</span> scheme != <span class="keyword">null</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>许多uri中（如URL），模式的特定部分是分层结构：<br>scheme-specific-part=authority/path?query<br>authority=userinfo@host:port<br>这种情况下uri形式仍然可以这样子表示：<br><strong>scheme://userInof@host:port/path?query#fragment</strong></p>
+<p>一个层次uri是透明的，非层的uri是不透明的（opaque），可以用方法进行判断<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 层次uri=透明的：isOpaque=false</span></div><div class="line"><span class="comment">// 非层次uri=不透明：isOpaque=true</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isOpaque</span><span class="params">()</span></span></div></pre></td></tr></table></figure></p>
+<p>对于层次uri（透明uri），可以通过和url类似的方式获得模式特定部分的不同部分。<br>对于非层次uri，只能得到模式，模式的特定部分，片段（fragment）。</p>
+<h1 id="创建URI"><a href="#创建URI" class="headerlink" title="创建URI"></a>创建URI</h1><h2 id="绝对URI"><a href="#绝对URI" class="headerlink" title="绝对URI"></a>绝对URI</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">URI</span><span class="params">(String str)</span> <span class="keyword">throws</span> URISyntaxException</span></div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URI</span><span class="params">(String scheme,</span></div><div class="line">	String userInfo, String host, <span class="keyword">int</span> port,</div><div class="line">	String path, String query, String fragment)</div><div class="line">        <span class="keyword">throws</span> URISyntaxException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URI</span><span class="params">(String scheme,</span></div><div class="line">	String authority,</div><div class="line">	String path, String query, String fragment)</div><div class="line">        <span class="keyword">throws</span> URISyntaxException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URI</span><span class="params">(String scheme, String host, </span></div><div class="line">	String path, String fragment)</div><div class="line">        <span class="keyword">throws</span> URISyntaxException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URI</span><span class="params">(String scheme, String ssp, String fragment)</span></div><div class="line">        <span class="keyword">throws</span> URISyntaxException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="keyword">static</span> URI <span class="title">create</span><span class="params">(String str)</span></div></pre></td></tr></table></figure>
+<p>与URL不同，URI不依赖底层协议处理器，所以只会检查URI语法。</p>
+<h2 id="相对URI"><a href="#相对URI" class="headerlink" title="相对URI"></a>相对URI</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 相对URI构造绝对URI</span></div><div class="line"><span class="function"><span class="keyword">public</span> URI <span class="title">resolve</span><span class="params">(URI uri)</span></span></div><div class="line"><span class="comment">// 相对URI构造绝对URI</span></div><div class="line"><span class="keyword">public</span> URI <span class="title">resolve</span><span class="params">(String str)</span></div><div class="line"><span class="comment">// 绝对URI构造相对URi</span></div><div class="line"><span class="keyword">public</span> URI <span class="title">relativize</span><span class="params">(URI uri)</span></div></pre></td></tr></table></figure>
+<h1 id="get方法"><a href="#get方法" class="headerlink" title="get方法"></a>get方法</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// scheme 没有 raw get 方法</span></div><div class="line"><span class="function"><span class="keyword">public</span> String <span class="title">getScheme</span><span class="params">()</span></span></div><div class="line"><span class="keyword">public</span> String <span class="title">getSchemeSpecificPart</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getFragment</span><span class="params">()</span></div><div class="line"><span class="comment">// ====== 层次uri可以获取值 ======</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getAuthority</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getUserInfo</span><span class="params">()</span></div><div class="line"><span class="comment">// host 没有 raw get 方法</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getHost</span><span class="params">()</span></div><div class="line"><span class="comment">// port 没有 raw get 方法</span></div><div class="line"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getPort</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getPath</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getQuery</span><span class="params">()</span></div><div class="line"><span class="comment">// ====== ======</span></div><div class="line"></div><div class="line"><span class="comment">// raw get 方法：用来获取decoder之前的值</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawSchemeSpecificPart</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawFragment</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawAuthority</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawUserInfo</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawPath</span><span class="params">()</span></div><div class="line"><span class="keyword">public</span> String <span class="title">getRawQuery</span><span class="params">()</span></div></pre></td></tr></table></figure>
+<h1 id="检查URI语法"><a href="#检查URI语法" class="headerlink" title="检查URI语法"></a>检查URI语法</h1><p>创建URI时，虽然会抛出URISyntaxException异常，但是并不一定会去检查语法<br>可以通过parseServerAuthority()方法主动检查URI的语法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> URI <span class="title">parseServerAuthority</span><span class="params">()</span></span></div><div class="line">	<span class="keyword">throws</span> URISyntaxException</div></pre></td></tr></table></figure>
+<h1 id="toString-和-toASCIIString"><a href="#toString-和-toASCIIString" class="headerlink" title="toString 和 toASCIIString"></a>toString 和 toASCIIString</h1><p>toString()返回未转义之前的值<br>toASCIIString()返回转义之前的值</p>
+<h1 id="toURL"><a href="#toURL" class="headerlink" title="toURL"></a>toURL</h1><p>如果是绝对的URI，转化为URL。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> URL <span class="title">toURL</span><span class="params">()</span> <span class="keyword">throws</span> MalformedURLException </span>&#123;</div><div class="line">	<span class="keyword">if</span> (!isAbsolute())</div><div class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"URI is not absolute"</span>);</div><div class="line">	<span class="keyword">return</span> <span class="keyword">new</span> URL(toString());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="参考："><a href="#参考：" class="headerlink" title="参考："></a>参考：</h1><ol>
+<li><a href="https://en.wikipedia.org/wiki/Uniform_Resource_Identifier" target="_blank" rel="external">https://en.wikipedia.org/wiki/Uniform_Resource_Identifier</a></li>
+<li>《java网络编程》（第四版）</li>
+</ol>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2016/10/29/javaNetwork/javaUrl/" rel="next" title="java.net.URL">
+                <i class="fa fa-chevron-left"></i> java.net.URL
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="//schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/yifan/husky.jpeg"
+               alt="一饭" />
+          <p class="site-author-name" itemprop="name">一饭</p>
+          <p class="site-description motion-element" itemprop="description"></p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">5</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#形式"><span class="nav-number">1.</span> <span class="nav-text">形式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#创建URI"><span class="nav-number">2.</span> <span class="nav-text">创建URI</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#绝对URI"><span class="nav-number">2.1.</span> <span class="nav-text">绝对URI</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相对URI"><span class="nav-number">2.2.</span> <span class="nav-text">相对URI</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#get方法"><span class="nav-number">3.</span> <span class="nav-text">get方法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#检查URI语法"><span class="nav-number">4.</span> <span class="nav-text">检查URI语法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#toString-和-toASCIIString"><span class="nav-number">5.</span> <span class="nav-text">toString 和 toASCIIString</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#toURL"><span class="nav-number">6.</span> <span class="nav-text">toURL</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#参考："><span class="nav-number">7.</span> <span class="nav-text">参考：</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2016</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">一饭</span>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.2"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.2"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>
