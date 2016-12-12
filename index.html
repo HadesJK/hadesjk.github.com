@@ -246,6 +246,128 @@
             
               
                 
+                <a class="post-title-link" href="/2016/12/12/java/java远程调式/" itemprop="url">
+                  java远程调式
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2016-12-12T14:04:37+08:00" content="2016-12-12">
+              2016-12-12
+            </time>
+          </span>
+
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="困境"><a href="#困境" class="headerlink" title="困境"></a>困境</h1><p>工作中遇到了本地环境能调用测试环境的服务(本地拨了VPN)，但是测试环境不能调用本地服务(dubbo服务)</p>
+<p>因此想到使用远程调式来解决这个问题，所有服务都部署在远程测试环境中，本地使用intellij idea调试代码</p>
+<h1 id="远程调式"><a href="#远程调式" class="headerlink" title="远程调式"></a>远程调式</h1><p>使用intellij远程调式需要准备2个工作：</p>
+<ol>
+<li>服务器开启允许远程调式</li>
+<li>intellij配置远程地址和端口，关联本地代码</li>
+</ol>
+<h2 id="服务器"><a href="#服务器" class="headerlink" title="服务器"></a>服务器</h2><p>如果使用命令行运行的jar，即通过 <strong>java -jar xxx.jar</strong> 的方式，那么需要加入启动参数</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">java -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,<span class="built_in">suspend</span>=n,address=9527 -jar xxx.jar</div></pre></td></tr></table></figure>
+<p>看到网上说，这种方式要注意的一个点(未亲测)：-jar 参数写在最后。</p>
+<p><strong>address=9527</strong> 表示端口是9527</p>
+<p>其它几个参数主要是：</p>
+<p><strong>server=y/n</strong> VM是否需要作为调试服务器执行</p>
+<p><strong>suspend=y/n</strong> 是否在调试客户端建立连接之后启动 VM</p>
+<h2 id="intellij"><a href="#intellij" class="headerlink" title="intellij"></a>intellij</h2><p>intellij 的配置比较简单，如一下几个图所示：</p>
+<p><strong>1. intellij 配置</strong></p>
+<p><img src="/images/java/远程调式/1.jpg" alt=""></p>
+<p><strong>2. intellij 配置</strong></p>
+<p><img src="/images/java/远程调式/2.jpg" alt=""></p>
+<p><strong>3. intellij 配置</strong></p>
+<p><img src="/images/java/远程调式/3.jpg" alt=""></p>
+<p><strong>4. 服务器启动程序，并允许远程调式</strong></p>
+<p><img src="/images/java/远程调式/4.jpg" alt=""></p>
+<p><strong>5. intellij 启动远程调式</strong></p>
+<p><img src="/images/java/远程调式/5.jpg" alt=""></p>
+<p><strong>6. 输入url，访问服务器</strong></p>
+<p><img src="/images/java/远程调式/6.jpg" alt=""></p>
+<p><strong>7. 断点进入intellij中</strong></p>
+<p><img src="/images/java/远程调式/7.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2016/10/31/javaNetwork/javaUri/" itemprop="url">
                   java.net.URI
                 </a>
@@ -759,125 +881,13 @@
 
 
     
-      
-
-  
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2016/10/28/fighting-md/" itemprop="url">
-                  重新开始
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            <span class="post-meta-item-icon">
-              <i class="fa fa-calendar-o"></i>
-            </span>
-            <span class="post-meta-item-text">发表于</span>
-            <time itemprop="dateCreated" datetime="2016-10-28T13:26:28+08:00" content="2016-10-28">
-              2016-10-28
-            </time>
-          </span>
-
-          
-            <span class="post-category" >
-              &nbsp; | &nbsp;
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-              
-                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
-                  <a href="/categories/me/" itemprop="url" rel="index">
-                    <span itemprop="name">me</span>
-                  </a>
-                </span>
-
-                
-                
-
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-
-          
-          
-
-          
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>不知道这几年都经历了啥！</p>
-<p>可以用一个字总结：惨。</p>
-<p>希望以后的日子能开心一点。</p>
-<p>对不起没有</p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
   </section>
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
+  </nav>
+
 
 
           </div>
@@ -916,7 +926,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">5</span>
+              <span class="site-state-item-count">6</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
