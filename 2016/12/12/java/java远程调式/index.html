@@ -111,7 +111,7 @@ intellij配置远程地址和端口，关联本地代码
 <meta property="og:image" content="http://yoursite.com/images/java/远程调式/5.jpg">
 <meta property="og:image" content="http://yoursite.com/images/java/远程调式/6.jpg">
 <meta property="og:image" content="http://yoursite.com/images/java/远程调式/7.jpg">
-<meta property="og:updated_time" content="2016-12-12T06:31:08.000Z">
+<meta property="og:updated_time" content="2016-12-12T11:32:46.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="java远程调式">
 <meta name="twitter:description" content="困境工作中遇到了本地环境能调用测试环境的服务(本地拨了VPN)，但是测试环境不能调用本地服务(dubbo服务)
@@ -345,6 +345,15 @@ intellij配置远程地址和端口，关联本地代码
 <p><img src="/images/java/远程调式/6.jpg" alt=""></p>
 <p><strong>7. 断点进入intellij中</strong></p>
 <p><img src="/images/java/远程调式/7.jpg" alt=""></p>
+<h1 id="环境隔离"><a href="#环境隔离" class="headerlink" title="环境隔离"></a>环境隔离</h1><p>让人讨厌的是，在一些大型企业中经常需要各种权限的VPN才能登陆，并且出于安全考虑，对机器做了限制，比如一些特殊的服务只能被部署在本机上的应用访问，对外部进行了隔离。</p>
+<p>这种情况下远程debug时，就需要用ssh进行端口转发了。</p>
+<p>当然首先是服务器端开始了debug模式，假设端口还是9527.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ssh -L &lt;<span class="built_in">local</span> port&gt;:localhost:&lt;remote port&gt; user@host -p &lt;port&gt; [-v -v]</div></pre></td></tr></table></figure>
+<p>按上面的例子，假设远程端口是9527，那么可以设置本地端口也为9527，user@port -p <port> 就是ssh的登录</port></p>
+<p>-v -v 可以不加。</p>
+<p>完整的命令可以是：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ssh -L 9527:localhost:9527 yifan@10.13.81.180 -p 10086</div></pre></td></tr></table></figure>
+<p>在intellij中配置的host为 <strong>localhost</strong>， port为 <strong>9527</strong></p>
 
       
     </div>
@@ -483,7 +492,7 @@ intellij配置远程地址和端口，关联本地代码
               
             
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#困境"><span class="nav-number">1.</span> <span class="nav-text">困境</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#远程调式"><span class="nav-number">2.</span> <span class="nav-text">远程调式</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#服务器"><span class="nav-number">2.1.</span> <span class="nav-text">服务器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#intellij"><span class="nav-number">2.2.</span> <span class="nav-text">intellij</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#困境"><span class="nav-number">1.</span> <span class="nav-text">困境</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#远程调式"><span class="nav-number">2.</span> <span class="nav-text">远程调式</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#服务器"><span class="nav-number">2.1.</span> <span class="nav-text">服务器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#intellij"><span class="nav-number">2.2.</span> <span class="nav-text">intellij</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#环境隔离"><span class="nav-number">3.</span> <span class="nav-text">环境隔离</span></a></li></ol></div>
             
           </div>
         </section>

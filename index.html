@@ -319,6 +319,15 @@
 <p><img src="/images/java/远程调式/6.jpg" alt=""></p>
 <p><strong>7. 断点进入intellij中</strong></p>
 <p><img src="/images/java/远程调式/7.jpg" alt=""></p>
+<h1 id="环境隔离"><a href="#环境隔离" class="headerlink" title="环境隔离"></a>环境隔离</h1><p>让人讨厌的是，在一些大型企业中经常需要各种权限的VPN才能登陆，并且出于安全考虑，对机器做了限制，比如一些特殊的服务只能被部署在本机上的应用访问，对外部进行了隔离。</p>
+<p>这种情况下远程debug时，就需要用ssh进行端口转发了。</p>
+<p>当然首先是服务器端开始了debug模式，假设端口还是9527.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ssh -L &lt;<span class="built_in">local</span> port&gt;:localhost:&lt;remote port&gt; user@host -p &lt;port&gt; [-v -v]</div></pre></td></tr></table></figure>
+<p>按上面的例子，假设远程端口是9527，那么可以设置本地端口也为9527，user@port -p <port> 就是ssh的登录</port></p>
+<p>-v -v 可以不加。</p>
+<p>完整的命令可以是：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ssh -L 9527:localhost:9527 yifan@10.13.81.180 -p 10086</div></pre></td></tr></table></figure>
+<p>在intellij中配置的host为 <strong>localhost</strong>， port为 <strong>9527</strong></p>
 
           
         
