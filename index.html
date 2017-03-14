@@ -246,6 +246,161 @@
             
               
                 
+                <a class="post-title-link" href="/2017/03/14/dubbo/dubbo registry 源码分析/" itemprop="url">
+                  dubbo registry 源码分析
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-03-14T20:32:24+08:00" content="2017-03-14">
+              2017-03-14
+            </time>
+          </span>
+
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="主要类图关系"><a href="#主要类图关系" class="headerlink" title="主要类图关系"></a>主要类图关系</h1><p>![][/images/dubbo/主要类图关系.png]</p>
+<h1 id="RegisterFactory"><a href="#RegisterFactory" class="headerlink" title="RegisterFactory"></a>RegisterFactory</h1><p>![][/images/dubbo/RegistryFactory.png]</p>
+<p>RegisterFactory 是接口，只有一个方法，用来创建Register</p>
+<p>实现类有4个：</p>
+<ul>
+<li>DubboRegistryFactory</li>
+<li>==<strong>ZookeeperRegistryFactory</strong>==</li>
+<li>MulticastRegistryFactory</li>
+<li>RedisRegistryFactory<br>前三个工厂类又继承自抽象类 ==<strong>AbstractRegistryFactory</strong>==。<br>分别返回4种类型的 Registry：<br>DubboRegistry， <strong>==ZookeeperRegistry==</strong> ， MulticastRegistry，RedisRegistry。</li>
+</ul>
+<h1 id="Registry"><a href="#Registry" class="headerlink" title="Registry"></a>Registry</h1><p>![][/images/dubbo/RegistryService.png]</p>
+<p>Registry 接口继承 RegistryService 接口，主要的5个方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">register</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unregister</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(URL url, NotifyListener listener)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unsubscribe</span><span class="params">(URL url, NotifyListener </span></span></div><div class="line">List&lt;URL&gt; lookup(URL url);</div></pre></td></tr></table></figure></p>
+<p>dubbo 注册中心的核心类主要是以上几个，下面分析加粗的几个类。</p>
+<hr>
+<h1 id="AbstractRegistry"><a href="#AbstractRegistry" class="headerlink" title="AbstractRegistry"></a>AbstractRegistry</h1><h2 id="字段解释"><a href="#字段解释" class="headerlink" title="字段解释"></a>字段解释</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// URL地址分隔符，用于文件缓存中，服务提供者URL分隔</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">char</span> URL_SEPARATOR = <span class="string">' '</span>;</div><div class="line"></div><div class="line"><span class="comment">// URL地址分隔正则表达式，用于解析文件缓存中服务提供者URL列表</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> String URL_SPLIT = <span class="string">"\\s+"</span>;</div><div class="line"></div><div class="line"><span class="comment">// 用来存储注册中心相关信息</span></div><div class="line"><span class="keyword">private</span> URL registryUrl;</div><div class="line"></div><div class="line"><span class="comment">// 本地磁盘缓存文件，注册中心保持了服务的信息，这个文件作为这些服务的本地文件缓存</span></div><div class="line"><span class="keyword">private</span> File file;</div><div class="line"></div><div class="line"><span class="comment">// 本地磁盘缓存，其中特殊的key值.registies记录注册中心列表，其它均为notified服务提供者列表</span></div><div class="line"><span class="comment">// Properties对象会读取本地磁盘缓存文件，也会将自身的信息刷入本地磁盘缓存文件</span></div><div class="line"><span class="comment">// 从代码的实现中可以看出，会有一个对应fileName.lock的文件来作为进程锁，对file进行写操作</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Properties properties = <span class="keyword">new</span> Properties();</div><div class="line"></div><div class="line"><span class="comment">// 文件缓存定时写入</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(<span class="number">1</span>, <span class="keyword">new</span> NamedThreadFactory(<span class="string">"DubboSaveRegistryCache"</span>, <span class="keyword">true</span>));</div><div class="line"></div><div class="line"><span class="comment">//是否是同步保存文件</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">boolean</span> syncSaveFile ;</div><div class="line"></div><div class="line"><span class="comment">// 相当于版本号的功能，防止旧的替换新的</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> AtomicLong lastCacheChanged = <span class="keyword">new</span> AtomicLong();</div><div class="line"></div><div class="line"><span class="comment">// 需要注册的服务集合</span></div><div class="line"><span class="comment">// 即使服务注册失败了，这个集合中仍有该服务的信息</span></div><div class="line"><span class="comment">// 但是如果服务取消注册了，将从这个集合中移除</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Set&lt;URL&gt; registered = <span class="keyword">new</span> ConcurrentHashSet&lt;URL&gt;();</div><div class="line"></div><div class="line"><span class="comment">// 需要订阅的服务集合</span></div><div class="line"><span class="comment">// 这个数据结构竟然是Map&lt;Key, Set&gt;的形式！</span></div><div class="line"><span class="comment">// 为什么value需要是一个Set&lt;NotifyListener&gt; 而不是一个NotifyListener！</span></div><div class="line"><span class="comment">// <span class="doctag">TODO:</span>求解释啊</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; subscribed = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line"></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, Map&lt;String, List&lt;URL&gt;&gt;&gt; notified = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, Map&lt;String, List&lt;URL&gt;&gt;&gt;();</div></pre></td></tr></table></figure>
+<hr>
+<p><strong>==构造器==</strong><br>构造器主要做了4件事：</p>
+<ol>
+<li>初始化一些参数</li>
+<li>创建了本地缓存文件的父级文件夹</li>
+</ol>
+<ul>
+<li>默认的文件是 <strong>==~/.dubbo/dubbo-registry-${ip}.cache”==</strong>，下面称为cache文件</li>
+<li>其中${ip}是dubbo自定义的url中获取的</li>
+<li>文件名中加入了ip的因素是因为dubbo可以采用多注册中心</li>
+<li>因此这个文件是对注册中心服务的缓存，而不是针对某一个服务提供者的</li>
+<li>对这个文件的操作采用了进程间锁，cache.lock来实现的，可以防止一个机器部署多个dubbo应用造成对这个文件并发操作</li>
+</ul>
+<ol>
+<li>加载上面那个位置的属性文件的数据</li>
+<li>执行notify，后面分析这个方法</li>
+</ol>
+<p><strong>dubbo register创建的文件</strong><br>![][/images/dubbo.cache.png]</p>
+<p>上图中，.cache结尾的是对注册中心的服务信息本地磁盘文件缓存<br>.lock是对.cache文件的进程间锁实现，所以这个文件没有任何数据</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">AbstractRegistry</span><span class="params">(URL url)</span> </span>&#123;</div><div class="line">    setUrl(url);</div><div class="line">    <span class="comment">// 启动文件保存定时器</span></div><div class="line">    syncSaveFile = url.getParameter(Constants.REGISTRY_FILESAVE_SYNC_KEY, <span class="keyword">false</span>);</div><div class="line">    String filename = url.getParameter(Constants.FILE_KEY, System.getProperty(<span class="string">"user.home"</span>) + <span class="string">"/.dubbo/dubbo-registry-"</span> + url.getHost() + <span class="string">".cache"</span>);</div><div class="line">    File file = <span class="keyword">null</span>;</div><div class="line">    <span class="keyword">if</span> (ConfigUtils.isNotEmpty(filename)) &#123;</div><div class="line">        file = <span class="keyword">new</span> File(filename);</div><div class="line">        <span class="keyword">if</span>(! file.exists() &amp;&amp; file.getParentFile() != <span class="keyword">null</span> &amp;&amp; ! file.getParentFile().exists())&#123;</div><div class="line">	    <span class="comment">// 创建父级文件夹，如果失败，抛出异常</span></div><div class="line">            <span class="keyword">if</span>(! file.getParentFile().mkdirs())&#123;</div><div class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Invalid registry store file "</span> + file + <span class="string">", cause: Failed to create directory "</span> + file.getParentFile() + <span class="string">"!"</span>);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">this</span>.file = file;</div><div class="line">    loadProperties();</div><div class="line">    notify(url.getBackupUrls());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>dubbo在使用过程中，采用了注册中心，而注册中心即可以是分布式系统，也可以是单节点，为了避免单点问题，dubbo消费者缓存了提供者的信息。从构造器中看出，dubbo不仅内存中缓存了服务提供者的信息，而且还通过本地磁盘文件缓存这些信息！这样子，即使注册中心宕机了，只要服务提供者依然可用，消费者仍然可以调用提供者的服务，提高了系统的可用性。<br>问题：本地文件缓存用了一个线程去保存，但是感觉没什么必要，完全可以内存中保存。<br>dubbo文档对这个的解释如下：【我感觉画蛇添足的作用】<br>![][/images/dubbo/dubbo.cache.intro.png]</p>
+<p><strong>AbstractRegistry#doSaveProperties(long version)</strong><br>该方法主要用来主动加载本地磁盘缓存的数据，即加载cache文件中的属性，加载完成之后，结合本地的属性值，全量写入到cache文件中，同时失败的话(多jvm实例下，获取不到进程锁，进程锁通过.cache.lock实现)，通过执行器(执行器是单线程)异步重试。</p>
+<p><strong>AbstractRegistry#notify(List<url> urls)</url></strong><br>// TODO:<br>结合RegistryDirectory#notify【consumer】和RegistryProtocol$OverrideListener#notify【provider】方法讲</p>
+<hr>
+<h1 id="FailbackRegistry"><a href="#FailbackRegistry" class="headerlink" title="FailbackRegistry"></a>FailbackRegistry</h1><p>failback<br>出故障时，自动恢复<br>failover<br>出故障时，设备失效</p>
+<h2 id="字段"><a href="#字段" class="headerlink" title="字段"></a>字段</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">// 定时任务执行器</div><div class="line">private final ScheduledExecutorService retryExecutor = Executors.newScheduledThreadPool(1, new NamedThreadFactory(&quot;DubboRegistryFailedRetryTimer&quot;, true));</div><div class="line"></div><div class="line">// 失败重试定时器，定时检查是否有请求失败，如有，无限次重试</div><div class="line">private final ScheduledFuture&lt;?&gt; retryFuture;</div><div class="line"></div><div class="line">/**</div><div class="line">* 一下5个集合针对 RegistryService 接口的5个方法操作失败情况下</div><div class="line">* 记录下操作失败的URL，然后使用重试任务异步重试</div><div class="line">*/</div><div class="line">// 注册失败的接口</div><div class="line">private final Set&lt;URL&gt; failedRegistered = new ConcurrentHashSet&lt;URL&gt;();</div><div class="line">// 取消注册失败的接口</div><div class="line">private final Set&lt;URL&gt; failedUnregistered = new ConcurrentHashSet&lt;URL&gt;();</div><div class="line">// 订阅失败的接口</div><div class="line">private final ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; failedSubscribed = new ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line">// 取消订阅失败的接口</div><div class="line">private final ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; failedUnsubscribed = new ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line">private final ConcurrentMap&lt;URL, Map&lt;NotifyListener, List&lt;URL&gt;&gt;&gt; failedNotified = new ConcurrentHashMap&lt;URL, Map&lt;NotifyListener, List&lt;URL&gt;&gt;&gt;();</div></pre></td></tr></table></figure>
+<h2 id="构造方法"><a href="#构造方法" class="headerlink" title="构造方法"></a>构造方法</h2><p>每隔一定的时间去检查5个集合中的操作失败的服务，然后尝试执行。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">FailbackRegistry</span><span class="params">(URL url)</span> </span>&#123;</div><div class="line">    <span class="keyword">super</span>(url);</div><div class="line">    <span class="comment">// 每隔 $&#123;retryPeriod&#125; 毫秒，都会去重试，默认每隔5000毫秒</span></div><div class="line">    <span class="keyword">int</span> retryPeriod = url.getParameter(Constants.REGISTRY_RETRY_PERIOD_KEY, Constants.DEFAULT_REGISTRY_RETRY_PERIOD);</div><div class="line">    <span class="comment">// 提交一个异步任务</span></div><div class="line">    <span class="keyword">this</span>.retryFuture = retryExecutor.scheduleWithFixedDelay(<span class="keyword">new</span> Runnable() &#123;</div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                retry();</div><div class="line">            &#125; <span class="keyword">catch</span> (Throwable t) &#123; <span class="comment">// 防御性容错</span></div><div class="line">                logger.error(<span class="string">"Unexpected error occur at failed retry, cause: "</span> + t.getMessage(), t);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;, retryPeriod, retryPeriod, TimeUnit.MILLISECONDS);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>看 <strong>==retry==</strong> 方法，对于5个失败的集合，分别执行方法<br>doRegister<br>doUnregister<br>doSubscribe<br>doUnsubscribe<br>listener.notify()</p>
+<p>而doXXX方法是由子类实现的</p>
+<hr>
+<h1 id="ZookeeperRegistry"><a href="#ZookeeperRegistry" class="headerlink" title="ZookeeperRegistry"></a>ZookeeperRegistry</h1><p><strong>很关键</strong></p>
+<h2 id="字段-1"><a href="#字段-1" class="headerlink" title="字段"></a>字段</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// zk的默认端口</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> <span class="keyword">int</span> DEFAULT_ZOOKEEPER_PORT = <span class="number">2181</span>;</div><div class="line"></div><div class="line"><span class="comment">// dubbo默认在zk下创建的根结点是 /dubbo, 其它所有节点都是这个节点的子节点</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> String DEFAULT_ROOT = <span class="string">"dubbo"</span>;</div><div class="line"><span class="comment">// 默认情况下 root 就是 /dubbo</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> String        root;</div><div class="line"></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Set&lt;String&gt; anyServices = <span class="keyword">new</span> ConcurrentHashSet&lt;String&gt;();</div><div class="line"></div><div class="line"><span class="comment">// key 是具体的服务， value是这些服务的watch抽象</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, ConcurrentMap&lt;NotifyListener, ChildListener&gt;&gt; zkListeners = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, ConcurrentMap&lt;NotifyListener, ChildListener&gt;&gt;();</div><div class="line"></div><div class="line"><span class="comment">// zk client    </span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ZookeeperClient zkClient;</div></pre></td></tr></table></figure>
+<h2 id="构造方法-1"><a href="#构造方法-1" class="headerlink" title="构造方法"></a>构造方法</h2><ol>
+<li>调用父类的构造方法，即执行了AbstractRegistry，FailbackRegistry</li>
+<li>初始化dubbo的根结点，默认是/dubbo，实际使用中，这个参数一般使用默认值</li>
+<li>zkClient连接zk集群，此时已和zk保持TCP长连接</li>
+<li>添加一个watch，当连接建立后，会执行 recover方法<br>这个watch中对连接建立后的异步处理是：<br>zk连接异步建立，可能需要很长时间（dubbo服务已经开始发布和订阅【dubbo与zk建立连接需要时间】，甚至发布和订阅已经执行完了，但是zk集群竟然都没启动），这时候对之前的服务需要重新发布与订阅，但是这个动作是交给FailbackRegistry的重试任务去执行的。</li>
+</ol>
+<h2 id="doRegister"><a href="#doRegister" class="headerlink" title="doRegister"></a>doRegister</h2><p>在zk上创建一个临时节点</p>
+<h2 id="doUnregister"><a href="#doUnregister" class="headerlink" title="doUnregister"></a>doUnregister</h2><p>在zk上删除一个临时节点</p>
+<h2 id="doSubscribe"><a href="#doSubscribe" class="headerlink" title="doSubscribe"></a>doSubscribe</h2><p>即使是服务提供者，也会订阅节点configurators，因此这个方法消费者和提供者都会用到。</p>
+<ul>
+<li>对于consumer，传入的是 RegistryDirectory 类型</li>
+<li>对于provider，传入的是 OverrideListener 类型</li>
+</ul>
+<p>方法的参数：url，接口；NotifyListener，其实就是watch的抽象</p>
+<p>分析代码段<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 只监听指定的分组</span></div><div class="line"><span class="comment">/**</span></div><div class="line"> * provider 会监听 /dubbo/api/configurators 节点</div><div class="line"> * consumer 会监听 /dubbo/api/下的3个节点【providers, configurators, routers】</div><div class="line"> */</div><div class="line">List&lt;URL&gt; urls = <span class="keyword">new</span> ArrayList&lt;URL&gt;();</div><div class="line"><span class="keyword">for</span> (String path : toCategoriesPath(url)) &#123; <span class="comment">// path是需要监听的节点，如 /dubbo/$&#123;interfaceName&#125;/provider</span></div><div class="line">    ConcurrentMap&lt;NotifyListener, ChildListener&gt; listeners = zkListeners.get(url);</div><div class="line">    <span class="keyword">if</span> (listeners == <span class="keyword">null</span>) &#123;</div><div class="line">        zkListeners.putIfAbsent(url, <span class="keyword">new</span> ConcurrentHashMap&lt;NotifyListener, ChildListener&gt;());</div><div class="line">        listeners = zkListeners.get(url);</div><div class="line">    &#125;</div><div class="line">    ChildListener zkListener = listeners.get(listener);</div><div class="line">    <span class="keyword">if</span> (zkListener == <span class="keyword">null</span>) &#123;</div><div class="line">        listeners.putIfAbsent(listener, <span class="keyword">new</span> ChildListener() &#123;</div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">childChanged</span><span class="params">(String parentPath, List&lt;String&gt; currentChilds)</span> </span>&#123;</div><div class="line">                ZookeeperRegistry.<span class="keyword">this</span>.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        zkListener = listeners.get(listener);</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 这个节点不存在的话，创建它</span></div><div class="line">    zkClient.create(path, <span class="keyword">false</span>);</div><div class="line">    <span class="comment">// 监听这个节点</span></div><div class="line">    <span class="comment">// 因此这个几点发生变化，真正执行的是代码是：</span></div><div class="line">    <span class="comment">// 上面的 ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));</span></div><div class="line">    List&lt;String&gt; children = zkClient.addChildListener(path, zkListener);</div><div class="line">    <span class="keyword">if</span> (children != <span class="keyword">null</span>) &#123;</div><div class="line">        urls.addAll(toUrlsWithEmpty(url, path, children));</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 对于provider和consumer，执行</span></div><div class="line">notify(url, listener, urls);</div></pre></td></tr></table></figure></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2016/12/12/java/java远程调式/" itemprop="url">
                   java远程调式
                 </a>
@@ -748,148 +903,6 @@
 
 
     
-      
-
-  
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2016/10/28/slf4j/" itemprop="url">
-                  slf4j
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            <span class="post-meta-item-icon">
-              <i class="fa fa-calendar-o"></i>
-            </span>
-            <span class="post-meta-item-text">发表于</span>
-            <time itemprop="dateCreated" datetime="2016-10-28T13:29:16+08:00" content="2016-10-28">
-              2016-10-28
-            </time>
-          </span>
-
-          
-            <span class="post-category" >
-              &nbsp; | &nbsp;
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-              
-                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
-                  <a href="/categories/java/" itemprop="url" rel="index">
-                    <span itemprop="name">java</span>
-                  </a>
-                </span>
-
-                
-                
-
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-
-          
-          
-
-          
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><strong>之前的个人博客使用jekyll搭建的，换了个mac，发现在本地用gem install jekyll完全装不了。</strong></p>
-<p><strong>在一只狗头的推荐下，开始使用hexo，很不错。</strong></p>
-<p><strong>重新开始，那么从前几天我在团队中分享的slf4j开始吧。</strong></p>
-<h1 id="java-日志"><a href="#java-日志" class="headerlink" title="java 日志"></a>java 日志</h1><p>当前java中存在的日志方案有很多种，但是主流的用法是接口+实现。</p>
-<p>Simple Logging Facade for Java (SLF4J) 是一款优秀的框架，相信很多软件攻城狮早已经使用了。</p>
-<p>网站: <a href="http://www.slf4j.org/" target="_blank" rel="external">http://www.slf4j.org/</a></p>
-<p>但是除了slf4j之外，还有 Jakarta Commons-Logging（jcl） ，Spring就是使用这个的。</p>
-<p>这篇文章主要分析在java工程中，如何接日志。</p>
-<h1 id="接口-or-实现"><a href="#接口-or-实现" class="headerlink" title="接口 or 实现"></a>接口 or 实现</h1><p>面向接口的编程是大家提倡的，因此代码中，日志一般使用接口，而具体什么实现，由使用方自己决定。</p>
-<p>我所了解到的主流接法是 slf4j + logback 的组合。</p>
-<p>slf4j，logback，log4j和log4j2 都是同一个作者。</p>
-<h1 id="多种接口和实现的统一"><a href="#多种接口和实现的统一" class="headerlink" title="多种接口和实现的统一"></a>多种接口和实现的统一</h1><p>一个常见的工程，往往会使用到多种依赖，而这些依赖会使用不同的日志接口，甚至有些依赖本身就不是面向接口的编程。</p>
-<p>因此如果不采用统一的日志，那么各种日志会以不同的形式出现，难以管理。</p>
-<p>如常见的一个SpringMvc工程，如果使用者采用slf4j，这时候就会出现slf4j+jcl共存的情况。</p>
-<p>slf4j的网站上给出了如何处理这种常见的多种接口和实现的统一。</p>
-<p>假设一个工程中用了2个依赖，分别是A，B，而使用者想用slf4j+logback。</p>
-<ul>
-<li>A使用了jcl</li>
-<li>B使用了log4j（B在编写中，没有采用面向接口的编程）</li>
-</ul>
-<p>这时候，应该拆除依赖A和B中的jcl和log4j，并且加入依赖slf4j和logback。</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">properties</span>&gt;</span></div><div class="line">	<span class="tag">&lt;<span class="name">slf4j.version</span>&gt;</span>1.7.21<span class="tag">&lt;/<span class="name">slf4j.version</span>&gt;</span></div><div class="line">	<span class="tag">&lt;<span class="name">logback.version</span>&gt;</span>1.1.7<span class="tag">&lt;/<span class="name">logback.version</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">properties</span>&gt;</span></div><div class="line"></div><div class="line">   <span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></div><div class="line">   	<span class="comment">&lt;!-- A排除jcl --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>xxx.A.xxx<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>A<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;A.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">exclusions</span>&gt;</span></div><div class="line">               <span class="tag">&lt;<span class="name">exclusion</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>commons-logging<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>commons-logging<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">               <span class="tag">&lt;/<span class="name">exclusion</span>&gt;</span></div><div class="line">           <span class="tag">&lt;/<span class="name">exclusions</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- B排除log4j --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>xxx.B.xxx<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>B<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;B.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">exclusions</span>&gt;</span></div><div class="line">               <span class="tag">&lt;<span class="name">exclusion</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">               <span class="tag">&lt;/<span class="name">exclusion</span>&gt;</span></div><div class="line">           <span class="tag">&lt;/<span class="name">exclusions</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- 加入slf4j --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j-over-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;slf4j.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- 加入logback --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>ch.qos.logback<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>logback-core<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;logback.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>ch.qos.logback<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>logback-classic<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;logback.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line">   <span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></div></pre></td></tr></table></figure>
-<p>现实中很少会遇到其它日志框架，如果遇到了jul，因为这是jdk的一部分，那么肯定不能在pom中将它排除掉。</p>
-<p>需要在代码中加入：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">SLF4JBridgeHandler.removeHandlersForRootLogger();</div><div class="line">SLF4JBridgeHandler.install();</div></pre></td></tr></table></figure>
-<p>在pom中加入转接依赖：</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jul-to-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;slf4j.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div></pre></td></tr></table></figure>
-<p>然后就可以将jul的日志转到slf4j了，但是性能不好，官网有提示。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>用一副图来总结用法。</p>
-<p><img src="/images/java/slf4j-1.jpg" alt=""></p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
   </section>
 
   
@@ -935,7 +948,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">6</span>
+              <span class="site-state-item-count">7</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
@@ -982,7 +995,7 @@
         <div class="copyright" >
   
   &copy; 
-  <span itemprop="copyrightYear">2016</span>
+  <span itemprop="copyrightYear">2017</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
