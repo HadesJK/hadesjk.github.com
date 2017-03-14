@@ -84,37 +84,46 @@
 
 
 
-<meta name="description" content="主要类图关系![][/images/dubbo/主要类图关系.png]
-RegisterFactory![][/images/dubbo/RegistryFactory.png]
+<meta name="description" content="主要类图关系
+RegisterFactory
 RegisterFactory 是接口，只有一个方法，用来创建Register
 实现类有4个：
 
 DubboRegistryFactory
 ==ZookeeperRegistryFactory==
-MulticastRe">
+MulticastRegistryFactory
+RedisRegistryFactory前三个工厂类又继承自抽象类 ==AbstractRegistryF">
 <meta property="og:type" content="article">
 <meta property="og:title" content="dubbo registry 源码分析">
 <meta property="og:url" content="http://yoursite.com/2017/03/14/dubbo/dubbo registry 源码分析/index.html">
 <meta property="og:site_name" content="一饭的博客">
-<meta property="og:description" content="主要类图关系![][/images/dubbo/主要类图关系.png]
-RegisterFactory![][/images/dubbo/RegistryFactory.png]
+<meta property="og:description" content="主要类图关系
+RegisterFactory
 RegisterFactory 是接口，只有一个方法，用来创建Register
 实现类有4个：
 
 DubboRegistryFactory
 ==ZookeeperRegistryFactory==
-MulticastRe">
-<meta property="og:updated_time" content="2017-03-14T12:41:51.000Z">
+MulticastRegistryFactory
+RedisRegistryFactory前三个工厂类又继承自抽象类 ==AbstractRegistryF">
+<meta property="og:image" content="http://yoursite.com/images/dubbo/main.class.png">
+<meta property="og:image" content="http://yoursite.com/images/dubbo/RegistryFactory.png">
+<meta property="og:image" content="http://yoursite.com/images/dubbo/RegistryService.png">
+<meta property="og:image" content="http://yoursite.com/images/dubbo/dubbo.cache.png">
+<meta property="og:image" content="http://yoursite.com/images/dubbo/dubbo.cache.intro.png">
+<meta property="og:updated_time" content="2017-03-14T12:59:20.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="dubbo registry 源码分析">
-<meta name="twitter:description" content="主要类图关系![][/images/dubbo/主要类图关系.png]
-RegisterFactory![][/images/dubbo/RegistryFactory.png]
+<meta name="twitter:description" content="主要类图关系
+RegisterFactory
 RegisterFactory 是接口，只有一个方法，用来创建Register
 实现类有4个：
 
 DubboRegistryFactory
 ==ZookeeperRegistryFactory==
-MulticastRe">
+MulticastRegistryFactory
+RedisRegistryFactory前三个工厂类又继承自抽象类 ==AbstractRegistryF">
+<meta name="twitter:image" content="http://yoursite.com/images/dubbo/main.class.png">
 
 
 
@@ -308,8 +317,8 @@ MulticastRe">
       
 
       
-        <h1 id="主要类图关系"><a href="#主要类图关系" class="headerlink" title="主要类图关系"></a>主要类图关系</h1><p>![][/images/dubbo/主要类图关系.png]</p>
-<h1 id="RegisterFactory"><a href="#RegisterFactory" class="headerlink" title="RegisterFactory"></a>RegisterFactory</h1><p>![][/images/dubbo/RegistryFactory.png]</p>
+        <h1 id="主要类图关系"><a href="#主要类图关系" class="headerlink" title="主要类图关系"></a>主要类图关系</h1><p><img src="/images/dubbo/main.class.png" alt=""></p>
+<h1 id="RegisterFactory"><a href="#RegisterFactory" class="headerlink" title="RegisterFactory"></a>RegisterFactory</h1><p><img src="/images/dubbo/RegistryFactory.png" alt=""></p>
 <p>RegisterFactory 是接口，只有一个方法，用来创建Register</p>
 <p>实现类有4个：</p>
 <ul>
@@ -318,7 +327,7 @@ MulticastRe">
 <li>MulticastRegistryFactory</li>
 <li>RedisRegistryFactory<br>前三个工厂类又继承自抽象类 ==<strong>AbstractRegistryFactory</strong>==。<br>分别返回4种类型的 Registry：<br>DubboRegistry， <strong>==ZookeeperRegistry==</strong> ， MulticastRegistry，RedisRegistry。</li>
 </ul>
-<h1 id="Registry"><a href="#Registry" class="headerlink" title="Registry"></a>Registry</h1><p>![][/images/dubbo/RegistryService.png]</p>
+<h1 id="Registry"><a href="#Registry" class="headerlink" title="Registry"></a>Registry</h1><p><img src="/images/dubbo/RegistryService.png" alt=""></p>
 <p>Registry 接口继承 RegistryService 接口，主要的5个方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">register</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unregister</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(URL url, NotifyListener listener)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unsubscribe</span><span class="params">(URL url, NotifyListener </span></span></div><div class="line">List&lt;URL&gt; lookup(URL url);</div></pre></td></tr></table></figure></p>
 <p>dubbo 注册中心的核心类主要是以上几个，下面分析加粗的几个类。</p>
 <hr>
@@ -340,10 +349,10 @@ MulticastRe">
 <li>加载上面那个位置的属性文件的数据</li>
 <li>执行notify，后面分析这个方法</li>
 </ol>
-<p><strong>dubbo register创建的文件</strong><br>![][/images/dubbo.cache.png]</p>
+<p><strong>dubbo register创建的文件</strong><br><img src="/images/dubbo/dubbo.cache.png" alt=""></p>
 <p>上图中，.cache结尾的是对注册中心的服务信息本地磁盘文件缓存<br>.lock是对.cache文件的进程间锁实现，所以这个文件没有任何数据</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">AbstractRegistry</span><span class="params">(URL url)</span> </span>&#123;</div><div class="line">    setUrl(url);</div><div class="line">    <span class="comment">// 启动文件保存定时器</span></div><div class="line">    syncSaveFile = url.getParameter(Constants.REGISTRY_FILESAVE_SYNC_KEY, <span class="keyword">false</span>);</div><div class="line">    String filename = url.getParameter(Constants.FILE_KEY, System.getProperty(<span class="string">"user.home"</span>) + <span class="string">"/.dubbo/dubbo-registry-"</span> + url.getHost() + <span class="string">".cache"</span>);</div><div class="line">    File file = <span class="keyword">null</span>;</div><div class="line">    <span class="keyword">if</span> (ConfigUtils.isNotEmpty(filename)) &#123;</div><div class="line">        file = <span class="keyword">new</span> File(filename);</div><div class="line">        <span class="keyword">if</span>(! file.exists() &amp;&amp; file.getParentFile() != <span class="keyword">null</span> &amp;&amp; ! file.getParentFile().exists())&#123;</div><div class="line">	    <span class="comment">// 创建父级文件夹，如果失败，抛出异常</span></div><div class="line">            <span class="keyword">if</span>(! file.getParentFile().mkdirs())&#123;</div><div class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Invalid registry store file "</span> + file + <span class="string">", cause: Failed to create directory "</span> + file.getParentFile() + <span class="string">"!"</span>);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">this</span>.file = file;</div><div class="line">    loadProperties();</div><div class="line">    notify(url.getBackupUrls());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>dubbo在使用过程中，采用了注册中心，而注册中心即可以是分布式系统，也可以是单节点，为了避免单点问题，dubbo消费者缓存了提供者的信息。从构造器中看出，dubbo不仅内存中缓存了服务提供者的信息，而且还通过本地磁盘文件缓存这些信息！这样子，即使注册中心宕机了，只要服务提供者依然可用，消费者仍然可以调用提供者的服务，提高了系统的可用性。<br>问题：本地文件缓存用了一个线程去保存，但是感觉没什么必要，完全可以内存中保存。<br>dubbo文档对这个的解释如下：【我感觉画蛇添足的作用】<br>![][/images/dubbo/dubbo.cache.intro.png]</p>
+<p>dubbo在使用过程中，采用了注册中心，而注册中心即可以是分布式系统，也可以是单节点，为了避免单点问题，dubbo消费者缓存了提供者的信息。从构造器中看出，dubbo不仅内存中缓存了服务提供者的信息，而且还通过本地磁盘文件缓存这些信息！这样子，即使注册中心宕机了，只要服务提供者依然可用，消费者仍然可以调用提供者的服务，提高了系统的可用性。<br>问题：本地文件缓存用了一个线程去保存，但是感觉没什么必要，完全可以内存中保存。<br>dubbo文档对这个的解释如下：【我感觉画蛇添足的作用】<br><img src="/images/dubbo/dubbo.cache.intro.png" alt=""></p>
 <p><strong>AbstractRegistry#doSaveProperties(long version)</strong><br>该方法主要用来主动加载本地磁盘缓存的数据，即加载cache文件中的属性，加载完成之后，结合本地的属性值，全量写入到cache文件中，同时失败的话(多jvm实例下，获取不到进程锁，进程锁通过.cache.lock实现)，通过执行器(执行器是单线程)异步重试。</p>
 <p><strong>AbstractRegistry#notify(List<url> urls)</url></strong><br>// TODO:<br>结合RegistryDirectory#notify【consumer】和RegistryProtocol$OverrideListener#notify【provider】方法讲</p>
 <hr>
