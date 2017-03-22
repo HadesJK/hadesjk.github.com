@@ -96,7 +96,7 @@
 <meta property="og:image" content="http://yoursite.com/images/java/对象内存计算/XX+UseCompressedOops.png">
 <meta property="og:image" content="http://yoursite.com/images/java/对象内存计算/XX-UseCompressedOops.png">
 <meta property="og:image" content="http://yoursite.com/images/java/对象内存计算/output1.png">
-<meta property="og:updated_time" content="2017-03-22T05:37:28.000Z">
+<meta property="og:updated_time" content="2017-03-22T07:36:42.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="java 对象内存计算">
 <meta name="twitter:description" content="3月19号去见了一个之前实习公司的同事，当他问我disruptor的时候，我突然懵逼了。这个还是之前我和他布道的，真是惭愧，我和他的差距体现在，他听到这个东西后，回去体验他，而我仅仅是听说过而已。当然作为一个非资深程序猿攻城狮，心服口难服(劳资不服)，因此回来后，马上拉了disruptor的源码。悲剧是一连串发生的，看到第一个类是  RingBuffer，里面有个RingBufferPad，7个字">
@@ -367,8 +367,9 @@
 <p>这样子分析，再看B的内存计算<br>head + a2 + a1 + a3 + padding/4 + a4 + b2 + padding/4 + b1 + padding/8<br>B: 12 + [4 + 8 + 2 + 2(padding)  + 1 + 1 + 2(padding) + 4] + 4(padding) = 40字节</p>
 <p>不行吗？那么通过java中的Unsafe类来看下各个字段的位置偏移信息：</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">long</span>	a1: <span class="number">16</span></div><div class="line"><span class="keyword">int</span>		a2: <span class="number">12</span></div><div class="line"><span class="keyword">short</span>	a3: <span class="number">24</span></div><div class="line"><span class="keyword">byte</span>	a4: <span class="number">26</span></div><div class="line"><span class="keyword">int</span>		b1: <span class="number">28</span></div><div class="line"><span class="keyword">byte</span>	b2: <span class="number">32</span></div></pre></td></tr></table></figure>
-<p><strong>还是对不上！</strong><br><strong>网上搜到这样子一段话：</strong></p>
+<p><strong>还是对不上！</strong><br><strong>网上搜到这样子一段话：(<a href="https://www.liaohuqiu.net/cn/posts/caculate-object-size-in-java/" target="_blank" rel="external">https://www.liaohuqiu.net/cn/posts/caculate-object-size-in-java/</a>)</strong></p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">在32bit的虚拟机上：</div><div class="line">如果子类首个成员变量是 long 或者 double 等 8 字节数据类型，</div><div class="line">而父类结束时没有 8 位对齐。</div><div class="line">会把子类的小于 8 字节的实例成员先排列，</div><div class="line">直到能 8 字节对齐。</div></pre></td></tr></table></figure>
+<p>根据这一点，就解释了上面的例子了，哈哈哈，也是醉了。</p>
 
       
     </div>
