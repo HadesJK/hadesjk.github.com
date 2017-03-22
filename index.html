@@ -246,6 +246,161 @@
             
               
                 
+                <a class="post-title-link" href="/2017/03/22/java/memory-allocate-md/" itemprop="url">
+                  java 对象内存计算
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-03-22T10:24:52+08:00" content="2017-03-22">
+              2017-03-22
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>3月19号去见了一个之前实习公司的同事，当他问我disruptor的时候，我突然懵逼了。<br>这个还是之前我和他布道的，真是惭愧，我和他的差距体现在，他听到这个东西后，回去体验他，而我仅仅是听说过而已。<br>当然作为一个非资深程序猿攻城狮，心服口难服(劳资不服)，因此回来后，马上拉了disruptor的源码。<br>悲剧是一连串发生的，看到第一个类是  RingBuffer，里面有个RingBufferPad，7个字段，其它什么都没有。<br>稍微搜了一下，发现和前几天我自己吹逼的cpu L1，L2，L3缓存有关，和jvm有关，因此才有了这篇文章。</p>
+<p>这篇文章讲的是如何计算一个java对象的内存，请听小仙细细道来。</p>
+<h1 id="java-内存计算"><a href="#java-内存计算" class="headerlink" title="java 内存计算"></a>java 内存计算</h1><p>java.lang.instrument.Instrumentation</p>
+<h1 id="java-对象的内存布局"><a href="#java-对象的内存布局" class="headerlink" title="java 对象的内存布局"></a>java 对象的内存布局</h1><p>这里抄一下 周志明 兄弟的《深入理解java虚拟机 jvm高级特性与最佳实践》（俺的jvm入门书籍）</p>
+<p><strong> <a href="http://www.infoq.com/cn/articles/jvm-hotspot" target="_blank" rel="external">http://www.infoq.com/cn/articles/jvm-hotspot</a> </strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">HotSpot虚拟机中，对象在内存中存储的布局可以分为三块区域：对象头（Header）、实例数据（Instance Data）和对齐填充（Padding）。</div><div class="line"></div><div class="line">HotSpot虚拟机的对象头包括两部分信息，</div><div class="line">第一部分用于存储对象自身的运行时数据，如哈希码（HashCode）、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等等，</div><div class="line">这部分数据的长度在32位和64位的虚拟机（暂不考虑开启压缩指针的场景）中分别为32个和64个Bits，官方称它为“Mark Word”。</div><div class="line">对象头的另外一部分是类型指针，即是对象指向它的类元数据的指针，虚拟机通过这个指针来确定这个对象是哪个类的实例。</div><div class="line">并不是所有的虚拟机实现都必须在对象数据上保留类型指针，换句话说查找对象的元数据信息并不一定要经过对象本身。</div><div class="line"></div><div class="line">如果对象是一个Java数组，那在对象头中还必须有一块用于记录数组长度的数据，</div><div class="line">因为虚拟机可以通过普通Java对象的元数据信息确定Java对象的大小，但是从数组的元数据中无法确定数组的大小。</div><div class="line"></div><div class="line">第三部分对齐填充并不是必然存在的，也没有特别的含义，它仅仅起着占位符的作用。</div><div class="line">由于HotSpot VM的自动内存管理系统要求对象起始地址必须是8字节的整数倍，换句话说就是对象的大小必须是8字节的整数倍。</div><div class="line">对象头部分正好似8字节的倍数（1倍或者2倍），因此当对象实例数据部分没有对齐的话，就需要通过对齐填充来补全。</div></pre></td></tr></table></figure>
+<p>那么根据这个理论知识，马上开始实践。</p>
+<p>之前俺对于数据库的原始对象，使用 int 和 Integer 很好奇，有什么规范可以遵循，以这个问题为由，查了一些知识<br>其中讲到一点：Integer 使用的内存是 int 的 4 倍！</p>
+<p>java中，int 是 4 字节的，而 Integer 呢？ 在32位虚拟机下，8(对象头)+4(域)+4(对齐填充)=16</p>
+<p>然后使用代码跑了一下，果然是 16 ：</p>
+<p><img src="/images/java/对象内存计算/ErrorIntegerSize.png" alt=""></p>
+<p>果然，哈哈哈！</p>
+<p>辣嚒，java.lang.Double呢？应该是 8(对象头)+8(域)=16，结果：</p>
+<p><img src="/images/java/对象内存计算/ErrorDoubleSize.png" alt=""></p>
+<p>雪崩啊，竟然是24，为毛！</p>
+<h1 id="32bit-amp-64bit"><a href="#32bit-amp-64bit" class="headerlink" title="32bit &amp; 64bit"></a>32bit &amp; 64bit</h1><p>又是一顿搜索，再结合周老师的理论，发现自己蠢了，理论上说32bit的和64bit的对象头是<strong>不一样</strong>的<br>查自己的机器：<br><img src="/images/java/对象内存计算/jvm.png" alt=""></p>
+<p>既然是64bit的虚拟机，那么计算方式是：16 + 8 = 24，咦，没问题！没问题？</p>
+<p>那么再来看 java.lang.Integer<br>内存应该是 16(对象头)+4(域)+4(对齐填充)=24，不是之前的结果</p>
+<p>完蛋了，问题粗在哪里呢。</p>
+<p>再查查查</p>
+<p>原来，64bit的虚拟机默认开启了指针压缩（周老师的理论也提到了，“暂不考虑开启压缩指针的场景”）<br>这个时候，对象头中的类型指针是4字节的</p>
+<p>OK，那么重新计算64bit下的java.lang.Integer和java.lang.Double的内存：</p>
+<p><strong>默认情况：开始指针压缩</strong></p>
+<p>-XX:+UseCompressedOops</p>
+<p>java.lang.Integer 12 + 4 + 0 = 16</p>
+<p>java.lang.Double  12 + 8 + 4 = 24</p>
+<p><img src="/images/java/对象内存计算/XX+UseCompressedOops.png" alt=""></p>
+<p><strong>不开启指针压缩</strong></p>
+<p>-XX:-UseCompressedOops</p>
+<p>java.lang.Integer 16 + 4 + 4 = 24</p>
+<p>java.lang.Double  16 + 8 + 0 = 24</p>
+<p><img src="/images/java/对象内存计算/XX-UseCompressedOops.png" alt=""></p>
+<h1 id="计算java对象内存"><a href="#计算java对象内存" class="headerlink" title="计算java对象内存"></a>计算java对象内存</h1><p>理论知识：<br>周老师提到了</p>
+<p>接下来实例数据部分是对象真正存储的有效信息，<br>也既是我们在程序代码里面所定义的各种类型的字段内容，<br>无论是从父类继承下来的，<br>还是在子类中定义的都需要记录起来。<br>这部分的存储顺序会受到虚拟机分配策略参数（FieldsAllocationStyle）和字段在Java源码中定义顺序的影响。<br>HotSpot虚拟机默认的分配策略为</p>
+<ol>
+<li>longs/doubles、</li>
+<li>ints、</li>
+<li>shorts/chars、</li>
+<li>bytes/booleans、</li>
+<li>oops（Ordinary Object Pointers），<br>从分配策略中可以看出，相同宽度的字段总是被分配到一起。<br><strong>在满足这个前提条件的情况下，在父类中定义的变量会出现在子类之前。</strong><br><strong>如果 CompactFields 参数值为true（默认为true），那子类之中较窄的变量也可能会插入到父类变量的空隙之中</strong></li>
+</ol>
+<p>前面只是提了很简单的情况，那么来计算下其它情况</p>
+<p>首先当实例数据很复杂的时候</p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2017/03/14/dubbo/dubbo registry 源码分析/" itemprop="url">
                   dubbo registry 源码分析
                 </a>
@@ -265,6 +420,25 @@
             </time>
           </span>
 
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/dubbo/" itemprop="url" rel="index">
+                    <span itemprop="name">dubbo</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
           
 
           
@@ -793,116 +967,6 @@
 
 
     
-      
-
-  
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2016/10/29/java学习计划/" itemprop="url">
-                  java学习计划
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            <span class="post-meta-item-icon">
-              <i class="fa fa-calendar-o"></i>
-            </span>
-            <span class="post-meta-item-text">发表于</span>
-            <time itemprop="dateCreated" datetime="2016-10-29T11:16:14+08:00" content="2016-10-29">
-              2016-10-29
-            </time>
-          </span>
-
-          
-
-          
-            
-          
-
-          
-
-          
-          
-
-          
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>之前接触过C语言，C++，C#，Python和java，使用最长的还是java。</p>
-<p>翻了翻印象笔记，也写了不少了，但是都很零碎，没有什么系统性，看到什么想到什么随便记一点。</p>
-<p>很多笔记也是前辈的博客抄过来的。</p>
-<p>大致想了一下，暂时从以下几个方面再系统学习下吧，之后有想法了再更新。</p>
-<ol>
-<li>java网络编程</li>
-<li>netty4</li>
-<li>rocketMq</li>
-<li>zookeeper</li>
-<li>dubbo</li>
-</ol>
-<p>当然作为一个java攻城狮，还要使用基本的工具。</p>
-<ol>
-<li>git</li>
-<li>maven</li>
-<li>intellij idea or eclipse</li>
-</ol>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
   </section>
 
   
@@ -948,7 +1012,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">7</span>
+              <span class="site-state-item-count">8</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
@@ -956,7 +1020,7 @@
           
             <div class="site-state-item site-state-categories">
               <a href="/categories">
-                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-count">4</span>
                 <span class="site-state-item-name">分类</span>
               </a>
             </div>
