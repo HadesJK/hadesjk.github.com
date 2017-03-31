@@ -1,0 +1,615 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.0.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.2" />
+
+
+
+
+
+
+<meta name="description" content="Sequence看懂这个类需要一下几个基础知识：
+
+CPU 缓存， 伪共享
+java 的 Unsafe 类
+
+CPU 缓存通常CPU不直接访问内存，而是通过每一级缓存访问。最上的是L1缓存，访问速度最快，当然存储容量也最小。其次是L2缓存，速度慢一些，存储容量也大一些。然后是L3缓存，速度再慢一些，存储容量再大一些。最后才是内存，速度最慢。当CPU从L1中获取不到，就会去L2中取，如果命中，则加载">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Disruptor 源码分析一：Sequence">
+<meta property="og:url" content="http://yoursite.com/2017/03/31/disruptor/DisruptorSequence-md/index.html">
+<meta property="og:site_name" content="一饭的博客">
+<meta property="og:description" content="Sequence看懂这个类需要一下几个基础知识：
+
+CPU 缓存， 伪共享
+java 的 Unsafe 类
+
+CPU 缓存通常CPU不直接访问内存，而是通过每一级缓存访问。最上的是L1缓存，访问速度最快，当然存储容量也最小。其次是L2缓存，速度慢一些，存储容量也大一些。然后是L3缓存，速度再慢一些，存储容量再大一些。最后才是内存，速度最慢。当CPU从L1中获取不到，就会去L2中取，如果命中，则加载">
+<meta property="og:updated_time" content="2017-03-31T13:51:58.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Disruptor 源码分析一：Sequence">
+<meta name="twitter:description" content="Sequence看懂这个类需要一下几个基础知识：
+
+CPU 缓存， 伪共享
+java 的 Unsafe 类
+
+CPU 缓存通常CPU不直接访问内存，而是通过每一级缓存访问。最上的是L1缓存，访问速度最快，当然存储容量也最小。其次是L2缓存，速度慢一些，存储容量也大一些。然后是L3缓存，速度再慢一些，存储容量再大一些。最后才是内存，速度最慢。当CPU从L1中获取不到，就会去L2中取，如果命中，则加载">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    }
+  };
+</script>
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/03/31/disruptor/DisruptorSequence-md/"/>
+
+
+  <title> Disruptor 源码分析一：Sequence | 一饭的博客 </title>
+</head>
+
+<body itemscope itemtype="//schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="//schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">一饭的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">对不起没有</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/me" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于我
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Disruptor 源码分析一：Sequence
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-03-31T21:48:58+08:00" content="2017-03-31">
+              2017-03-31
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/disruptor/" itemprop="url" rel="index">
+                    <span itemprop="name">disruptor</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Sequence"><a href="#Sequence" class="headerlink" title="Sequence"></a>Sequence</h1><p>看懂这个类需要一下几个基础知识：</p>
+<ol>
+<li>CPU 缓存， 伪共享</li>
+<li>java 的 Unsafe 类</li>
+</ol>
+<h1 id="CPU-缓存"><a href="#CPU-缓存" class="headerlink" title="CPU 缓存"></a>CPU 缓存</h1><p>通常CPU不直接访问内存，而是通过每一级缓存访问。<br>最上的是L1缓存，访问速度最快，当然存储容量也最小。<br>其次是L2缓存，速度慢一些，存储容量也大一些。<br>然后是L3缓存，速度再慢一些，存储容量再大一些。<br>最后才是内存，速度最慢。<br>当CPU从L1中获取不到，就会去L2中取，如果命中，则加载到L1中。<br>但是加载过程是整一个缓存行替换，通常的CPU的缓存行占用64字节，也就是说L1不命中时，会直接替换64个字节。</p>
+<p>伪共享（False Sharing）的问题时，多线程之间各自读取相互独立的几个变量，<br>但是如果在内存中，这几个相互独立的变量是相邻的，那么每个线程在修改自己的变量时，<br>可以会时另外一个线程的变量失效，需要从内存中获取，从而互相影响性能。<br>虽然这几个变量互相独立，</p>
+<p>这个类是 Disruptor 的核心，主要就一个字段：value，前后都用了56个字节填充（7个long），主要考虑到缓存行填充来消除伪共享的问题。<br>前后都用56字节填充的好处是，只要读取/写入value这个字段，不会因为其它数据的读写而影响这个字段需要失效。</p>
+<h1 id="sun-misc-Unsafe"><a href="#sun-misc-Unsafe" class="headerlink" title="sun.misc.Unsafe"></a>sun.misc.Unsafe</h1><p>这是 jdk 提供的一个不安全类，程序员很少会去使用这个类。</p>
+<p>从源码中看到很多 native 方法，底层由虚拟机实现。</p>
+<p>这里主要分析用到的几个方法。</p>
+<p>获取 Unsafe 实例</p>
+<p>虽然 Unsafe 提供了一个静态方法 getUnsafe()，然而在代码中无法直接使用这个方法，会抛出异常 SecurityException</p>
+<p>但是 通过 jdk 的反射方法却可以获取</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 获取 Unsafe 的私有字段 theUnsafe</span></div><div class="line">Field theUnsafe = Unsafe.class.getDeclaredField(<span class="string">"theUnsafe"</span>);</div><div class="line"><span class="comment">// 取得私有字段 theUnsafe 的访问权限</span></div><div class="line">theUnsafe.setAccessible(<span class="keyword">true</span>);</div><div class="line"><span class="keyword">return</span> (Unsafe) theUnsafe.get(<span class="keyword">null</span>);</div></pre></td></tr></table></figure>
+<p>获取类中一个字段的偏移量<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">long</span> <span class="title">objectFieldOffset</span><span class="params">(Field var1)</span></span>;</div></pre></td></tr></table></figure></p>
+<p>原子的写long，但是值不立即刷入内存<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">public native void putOrderedLong(Object var1, long var2, long var4);</div></pre></td></tr></table></figure></p>
+<p>long 字段原子写，值立即刷入内存<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">public native void putLongVolatile(Object var1, long var2, long var4);</div></pre></td></tr></table></figure></p>
+<h1 id="Sequence-源码分析"><a href="#Sequence-源码分析" class="headerlink" title="Sequence 源码分析"></a>Sequence 源码分析</h1><p>Sequence 是 Disruptor 的核心，这里称为序号<br>生产者利用序号获取 RingBuffer 当前可用的位置<br>消费者利用序号获取 RingBuffer 当前可以消费的最大位置，同时消费者自身需要记录当前已经消费到的位置</p>
+<p>首先使用前后56字节填充关键字段<br><strong>protected volatile long value;</strong>，<br>即缓存行填充来避免伪共享的问题，<br>典型的空间获取时间。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">LhsPadding</span> </span>&#123;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">long</span> p1, p2, p3, p4, p5, p6, p7;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Value</span> <span class="keyword">extends</span> <span class="title">LhsPadding</span> </span>&#123;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">volatile</span> <span class="keyword">long</span> value;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">RhsPadding</span> <span class="keyword">extends</span> <span class="title">Value</span> </span>&#123;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">long</span> p9, p10, p11, p12, p13, p14, p15;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>然后是计算 value 在类中的偏移量<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 初始值</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> INITIAL_VALUE = -<span class="number">1L</span>;</div><div class="line"><span class="comment">// Unsafe 对象</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Unsafe UNSAFE;</div><div class="line"><span class="comment">// 偏移量</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> VALUE_OFFS</div><div class="line"><span class="keyword">static</span> &#123;</div><div class="line">    UNSAFE = Util.getUnsafe();</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">    	<span class="comment">// 计算 value 字段在类 Value 中的偏移量</span></div><div class="line">    	<span class="comment">// 按 java 的规则，父类的字段在前面，因此这个也是 value 字段在 Sequence 中的位置</span></div><div class="line">        VALUE_OFFSET = UNSAFE.objectFieldOffset(Value.class.getDeclaredField(<span class="string">"value"</span>));</div><div class="line">    &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> Exception e) &#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">Sequence</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">this</span>(INITIAL_VALUE);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 初始化，但是这个值不立即刷入内存中，也就是说其它线程不一定立即可见</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">Sequence</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> initialValue)</span> </span>&#123;</div><div class="line">    UNSAFE.putOrderedLong(<span class="keyword">this</span>, VALUE_OFFSET, initialValue);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 读取 volatile 变量</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">get</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> value;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 原子的写一个 long 变量，但是不立即刷入内存中</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> value)</span> </span>&#123;</div><div class="line">    UNSAFE.putOrderedLong(<span class="keyword">this</span>, VALUE_OFFSET, value);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 写 volatile 变量</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setVolatile</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> value)</span> </span>&#123;</div><div class="line">    UNSAFE.putLongVolatile(<span class="keyword">this</span>, VALUE_OFFSET, value);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 对 value 值的 cas 操作</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">compareAndSet</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> expectedValue, <span class="keyword">final</span> <span class="keyword">long</span> newValue)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> UNSAFE.compareAndSwapLong(<span class="keyword">this</span>, VALUE_OFFSET, expectedValue, newValue);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 类似 AtomicLong.incrementAndGet 操作</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">incrementAndGet</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> addAndGet(<span class="number">1L</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 类似 AtomicLong.addAndGet 操作</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">addAndGet</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> increment)</span> </span>&#123;</div><div class="line">    <span class="keyword">long</span> currentValue;</div><div class="line">    <span class="keyword">long</span> newValue;</div><div class="line">    <span class="keyword">do</span> &#123;</div><div class="line">        currentValue = get();</div><div class="line">        newValue = currentValue + increment;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">while</span> (!compareAndSet(currentValue, newValue));</div><div class="line">    <span class="keyword">return</span> newValue;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> Long.toString(get());</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>Sequence 有2个子类 FixedSequenceGroup 和 SequenceGroup<br>FixedSequenceGroup 从命名上看出是一个固定数量的 Sequence 组，内部利用数组实现<br>SequenceGroup 则是一个长度可变的 Sequence 组，可能很容易想到的是 List 实现，然而作者仍然采用数组实现。</p>
+<h1 id="FixedSequenceGroup"><a href="#FixedSequenceGroup" class="headerlink" title="FixedSequenceGroup"></a>FixedSequenceGroup</h1><p>这个类比较简单</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">FixedSequenceGroup</span> <span class="keyword">extends</span> <span class="title">Sequence</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequence[] sequences;</div><div class="line"></div><div class="line">    <span class="comment">// 初始化 Sequence 数组，一旦初始化，这个数组变不可变化，但数组持有的是引用，引用指向的内容是可变的</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">FixedSequenceGroup</span><span class="params">(Sequence[] sequences)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.sequences = Arrays.copyOf(sequences, sequences.length);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 获取 Sequence 组的最小序号值</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">get</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> Util.getMinimumSequence(sequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> Arrays.toString(sequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// ====== 因为是不可变 Sequence 组，对这个组的写操作都不支持 ======</span></div><div class="line">    <span class="comment">// ====== 感觉这个类没啥用 ======</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(<span class="keyword">long</span> value)</span> </span>&#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> UnsupportedOperationException();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">compareAndSet</span><span class="params">(<span class="keyword">long</span> expectedValue, <span class="keyword">long</span> newValue)</span> </span>&#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> UnsupportedOperationException();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">incrementAndGet</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> UnsupportedOperationException();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">addAndGet</span><span class="params">(<span class="keyword">long</span> increment)</span> </span>&#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> UnsupportedOperationException();</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="SequenceGroups"><a href="#SequenceGroups" class="headerlink" title="SequenceGroups"></a>SequenceGroups</h1><p>这里先介绍工具 SequenceGroups<br>不得不吐槽一下作者，类的命名真是没考虑中国攻城狮的感受，这个类可以取成 SequenceGroupUtil 多好</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SequenceGroups</span> </span>&#123;</div><div class="line">    <span class="comment">// 添加一个序号到序号组，支持并发添加</span></div><div class="line">    <span class="comment">// holder 持有序号组的对象，即 SequenceGroup，可能以后还有其它对象</span></div><div class="line">    <span class="comment">// updater 更新器 AtomicReferenceFieldUpdater</span></div><div class="line">    <span class="comment">// cursor 当前的序号位置，即 SequenceGroup 的 value 字段（SequenceGroup 也是 Sequence 对象）</span></div><div class="line">    <span class="comment">// sequencesToAdd 需要添加的 Sequence 数组</span></div><div class="line">    <span class="keyword">static</span> &lt;T&gt; <span class="function"><span class="keyword">void</span> <span class="title">addSequences</span><span class="params">(<span class="keyword">final</span> T holder, </span></span></div><div class="line">                                <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;T, Sequence[]&gt; updater, </div><div class="line">                                <span class="keyword">final</span> Cursored cursor, </div><div class="line">                                <span class="keyword">final</span> Sequence... sequencesToAdd) &#123;</div><div class="line">        <span class="keyword">long</span> cursorSequence;</div><div class="line">        Sequence[] updatedSequences;</div><div class="line">        Sequence[] currentSequences;</div><div class="line">        <span class="keyword">do</span> &#123;</div><div class="line">            <span class="comment">// 获取 SequenceGroup 持有的 Sequence 数组</span></div><div class="line">            currentSequences = updater.get(holder);</div><div class="line">            updatedSequences = copyOf(currentSequences, currentSequences.length + sequencesToAdd.length);</div><div class="line">            cursorSequence = cursor.getCursor();</div><div class="line">            <span class="comment">// 将需要添加的 Sequence 数组添加到末尾，并初始化 value 为当前 Sequence 的value</span></div><div class="line">            <span class="keyword">int</span> index = currentSequences.length;</div><div class="line">            <span class="keyword">for</span> (Sequence sequence : sequencesToAdd) &#123;</div><div class="line">                sequence.set(cursorSequence);</div><div class="line">                updatedSequences[index++] = sequence;</div><div class="line">            &#125;</div><div class="line">        &#125; <span class="keyword">while</span> (!updater.compareAndSet(holder, currentSequences, updatedSequences));</div><div class="line"></div><div class="line">        <span class="comment">// <span class="doctag">TODO:</span> 添加后，为什么还需要重新设置被添加的 Sequence 数组的序列号值？</span></div><div class="line">        cursorSequence = cursor.getCursor();</div><div class="line">        <span class="keyword">for</span> (Sequence sequence : sequencesToAdd) &#123;</div><div class="line">            sequence.set(cursorSequence);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">static</span> &lt;T&gt; <span class="function"><span class="keyword">boolean</span> <span class="title">removeSequence</span><span class="params">(</span></span></div><div class="line">            <span class="keyword">final</span> T holder,</div><div class="line">            <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;T, Sequence[]&gt; sequenceUpdater,</div><div class="line">            <span class="keyword">final</span> Sequence sequence) &#123;</div><div class="line">        <span class="keyword">int</span> numToRemove;</div><div class="line">        Sequence[] oldSequences;</div><div class="line">        Sequence[] newSequences;</div><div class="line"></div><div class="line">        <span class="keyword">do</span> &#123;</div><div class="line">            oldSequences = sequenceUpdater.get(holder);</div><div class="line">            <span class="comment">// 需要移除出序号组的数量</span></div><div class="line">            numToRemove = countMatching(oldSequences, sequence);</div><div class="line">            <span class="keyword">if</span> (<span class="number">0</span> == numToRemove) &#123;</div><div class="line">                <span class="keyword">break</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="keyword">final</span> <span class="keyword">int</span> oldSize = oldSequences.length;</div><div class="line">            newSequences = <span class="keyword">new</span> Sequence[oldSize - numToRemove];</div><div class="line"></div><div class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>, pos = <span class="number">0</span>; i &lt; oldSize; i++) &#123;</div><div class="line">                <span class="keyword">final</span> Sequence testSequence = oldSequences[i];</div><div class="line">                <span class="keyword">if</span> (sequence != testSequence) &#123;</div><div class="line">                    <span class="comment">// 如果引用不等，表示不需要移除</span></div><div class="line">                    newSequences[pos++] = testSequence;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125; <span class="keyword">while</span> (!sequenceUpdater.compareAndSet(holder, oldSequences, newSequences));</div><div class="line">        <span class="keyword">return</span> numToRemove != <span class="number">0</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 计算出需要移除的数量</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> &lt;T&gt; <span class="function"><span class="keyword">int</span> <span class="title">countMatching</span><span class="params">(T[] values, <span class="keyword">final</span> T toMatch)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> numToRemove = <span class="number">0</span>;</div><div class="line">        <span class="keyword">for</span> (T value : values) &#123;</div><div class="line">            <span class="keyword">if</span> (value == toMatch) &#123;</div><div class="line">                numToRemove++;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> numToRemove;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="SequenceGroup"><a href="#SequenceGroup" class="headerlink" title="SequenceGroup"></a>SequenceGroup</h1><p>SequenceGroup 是 Sequence 的子类，这里称为 序号组 。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">SequenceGroup</span> <span class="keyword">extends</span> <span class="title">Sequence</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;SequenceGroup, Sequence[]&gt; SEQUENCE_UPDATER =</div><div class="line">            AtomicReferenceFieldUpdater.newUpdater(SequenceGroup.class, Sequence[].class, <span class="string">"sequences"</span>);</div><div class="line">    <span class="comment">// 这个是 SequenceGroup，初始值为长度等于 0 的数组</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> Sequence[] sequences = <span class="keyword">new</span> Sequence[<span class="number">0</span>];</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SequenceGroup</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">super</span>(-<span class="number">1</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 获取 SequenceGroup 中的最小的序号值，无并发控制</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">get</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> Util.getMinimumSequence(sequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 设置 SequenceGroup 中的每个序号为 value 值，无并发控制</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> value)</span> </span>&#123;</div><div class="line">        <span class="keyword">final</span> Sequence[] sequences = <span class="keyword">this</span>.sequences;</div><div class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>, size = sequences.length; i &lt; size; i++) &#123;</div><div class="line">            sequences[i].set(value);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 原子的添加一个序号到序号组，cas实现乐观锁</span></div><div class="line">    <span class="comment">// 这个方法支持并发，但不能在运行中添加，否则 </span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">(<span class="keyword">final</span> Sequence sequence)</span> </span>&#123;</div><div class="line">        Sequence[] oldSequences;</div><div class="line">        Sequence[] newSequences;</div><div class="line">        <span class="keyword">do</span> &#123;</div><div class="line">            oldSequences = sequences;</div><div class="line">            <span class="keyword">final</span> <span class="keyword">int</span> oldSize = oldSequences.length;</div><div class="line">            newSequences = <span class="keyword">new</span> Sequence[oldSize + <span class="number">1</span>];</div><div class="line">            System.arraycopy(oldSequences, <span class="number">0</span>, newSequences, <span class="number">0</span>, oldSize);</div><div class="line">            newSequences[oldSize] = sequence;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">while</span> (!SEQUENCE_UPDATER.compareAndSet(<span class="keyword">this</span>, oldSequences, newSequences));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 支持动态得从序号组中移除一个序号</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">remove</span><span class="params">(<span class="keyword">final</span> Sequence sequence)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> SequenceGroups.removeSequence(<span class="keyword">this</span>, SEQUENCE_UPDATER, sequence);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">size</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> sequences.length;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 支持动态得从序号组中添加一个序号</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addWhileRunning</span><span class="params">(Cursored cursored, Sequence sequence)</span> </span>&#123;</div><div class="line">        SequenceGroups.addSequences(<span class="keyword">this</span>, SEQUENCE_UPDATER, cursored, sequence);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/03/22/java/memory-allocate-md/" rel="next" title="java 对象内存计算">
+                <i class="fa fa-chevron-left"></i> java 对象内存计算
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="//schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/yifan/husky.jpeg"
+               alt="一饭" />
+          <p class="site-author-name" itemprop="name">一饭</p>
+          <p class="site-description motion-element" itemprop="description"></p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">9</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Sequence"><span class="nav-number">1.</span> <span class="nav-text">Sequence</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CPU-缓存"><span class="nav-number">2.</span> <span class="nav-text">CPU 缓存</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#sun-misc-Unsafe"><span class="nav-number">3.</span> <span class="nav-text">sun.misc.Unsafe</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Sequence-源码分析"><span class="nav-number">4.</span> <span class="nav-text">Sequence 源码分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#FixedSequenceGroup"><span class="nav-number">5.</span> <span class="nav-text">FixedSequenceGroup</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SequenceGroups"><span class="nav-number">6.</span> <span class="nav-text">SequenceGroups</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SequenceGroup"><span class="nav-number">7.</span> <span class="nav-text">SequenceGroup</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">一饭</span>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.2"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.2"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>

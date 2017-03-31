@@ -246,6 +246,154 @@
             
               
                 
+                <a class="post-title-link" href="/2016/10/29/javaNetwork/javaUrl/" itemprop="url">
+                  java.net.URL
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2016-10-29T15:20:22+08:00" content="2016-10-29">
+              2016-10-29
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/java-网络编程/" itemprop="url" rel="index">
+                    <span itemprop="name">java 网络编程</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>URL(Uniform Resource Locator) 统一资源定位符。</p>
+<h1 id="形式"><a href="#形式" class="headerlink" title="形式"></a>形式</h1><p><strong>protocol://userInof@host:port/path?query#fragment</strong></p>
+<p>protocol需要是java支持的协议，如http、https、ftp等</p>
+<p>userInfo是可选的</p>
+<p>port是可选的</p>
+<p>authority=userInof@host:port</p>
+<p>file=/path?query<br><strong>file在java.net.URL中必须以/开头！</strong></p>
+<p>如：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">url = <span class="keyword">new</span> URL(<span class="string">"http://username:password@www.example.com:123/path/data?key=value&amp;key2=value2#fragid1"</span>);</div><div class="line"><span class="comment">// 各个部分：</span></div><div class="line">protocol:	http</div><div class="line">userInfo:	username:password</div><div class="line">host:		www.example.com</div><div class="line">port:		<span class="number">123</span></div><div class="line">authority:	username:password<span class="meta">@www</span>.example.com:<span class="number">123</span></div><div class="line">path:		/path/data</div><div class="line">query:		key=value&amp;key2=value2</div><div class="line">file:		/path/data?key=value&amp;key2=value2</div><div class="line">ref:		fragid1</div></pre></td></tr></table></figure></p>
+<h1 id="创建URL"><a href="#创建URL" class="headerlink" title="创建URL"></a>创建URL</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// spec=url</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(String spec)</span> <span class="keyword">throws</span> </span></div><div class="line">	MalformedURLException</div><div class="line"></div><div class="line"><span class="comment">// 相对URL，移除context的file，将spec接到最后</span></div><div class="line"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(URL context, String spec)</span></div><div class="line"></div><div class="line"><span class="comment">// port 采用协议的default port值</span></div><div class="line"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(String protocol, String host, String file)</span> </div><div class="line">	<span class="keyword">throws</span> MalformedURLException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(String protocol, String host, <span class="keyword">int</span> port, String file)</span> </div><div class="line">	<span class="keyword">throws</span> MalformedURLException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(URL context, String spec, URLStreamHandler handler)</span> </div><div class="line">	<span class="keyword">throws</span> MalformedURLException</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="title">URL</span><span class="params">(String protocol, String host, <span class="keyword">int</span> port, String file, URLStreamHandler handler)</span> </div><div class="line">	<span class="keyword">throws</span> MalformedURLException</div></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// http://www.jinqiliang.me/index.html</span></div><div class="line">url = <span class="keyword">new</span> URL(<span class="string">"http://www.jinqiliang.me/index.html"</span>);</div><div class="line">System.out.println(url);</div><div class="line"></div><div class="line"><span class="comment">// http://www.jinqiliang.me/hello1</span></div><div class="line">url = <span class="keyword">new</span> URL(<span class="string">"http"</span>, <span class="string">"www.jinqiliang.com"</span>, <span class="string">"/hello1"</span>);</div><div class="line">System.out.println(url);</div><div class="line"></div><div class="line"><span class="comment">// http://www.jinqiliang.me:9527/hello2</span></div><div class="line">url = <span class="keyword">new</span> URL(<span class="string">"http"</span>, <span class="string">"www.jinqiliang.com"</span>, <span class="number">9527</span>, <span class="string">"/hello2"</span>);</div><div class="line">System.out.println(url);</div><div class="line"></div><div class="line"><span class="comment">// http://www.jinqiliang.me/about</span></div><div class="line">url = <span class="keyword">new</span> URL(url, <span class="string">"about"</span>);</div><div class="line">System.out.println(url);</div></pre></td></tr></table></figure>
+<p>除了以上方法之外还有一些方法可以获取URL。</p>
+<p>java classLoader.getResource() 可以返回URL</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 静态方法</span></div><div class="line">url = ClassLoader.getSystemResource(<span class="string">"hei.properties"</span>);</div><div class="line">System.out.println(url);</div><div class="line"></div><div class="line"><span class="comment">// 静态方法</span></div><div class="line">Enumeration&lt;URL&gt; urls =  ClassLoader.getSystemResources(<span class="string">"hei.properties"</span>);</div><div class="line"><span class="keyword">while</span>(urls.hasMoreElements()) &#123;</div><div class="line">	url = urls.nextElement();</div><div class="line">	System.out.println(url);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 实例方法</span></div><div class="line">url = Main.class.getClassLoader().getResource(<span class="string">"hei.properties"</span>);</div><div class="line">System.out.println(url);</div></pre></td></tr></table></figure>
+<h1 id="get方法"><a href="#get方法" class="headerlink" title="get方法"></a>get方法</h1><p>URL类提供了一些get方法来获取url中的特定部分</p>
+<ul>
+<li>public String getPath()<br>返回URL路径部分。</li>
+<li>public String getQuery()<br>返回URL查询部分。</li>
+<li>public String getAuthority()<br>获取此 URL 的授权部分。</li>
+<li>public int getPort()<br>返回URL端口部分</li>
+<li>public int getDefaultPort()<br>返回协议的默认端口号。</li>
+<li>public String getProtocol()<br>返回URL的协议</li>
+<li>public String getHost()<br>返回URL的主机</li>
+<li>public String getFile()<br>返回URL文件名部分</li>
+<li>public String getRef()<br>获取此 URL 的锚点（也称为”引用”）</li>
+</ul>
+<h1 id="获取数据"><a href="#获取数据" class="headerlink" title="获取数据"></a>获取数据</h1><p>URL定义了如何定位一个资源，因此可以通过url来获取资源。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 1</span></div><div class="line"><span class="comment">// 为url打开一个socket，并返回URLConnnect对象</span></div><div class="line"><span class="comment">// 如果打开失败，抛出异常IOException</span></div><div class="line"><span class="comment">// 这个对象还包括了连接的信息，如协议等</span></div><div class="line"><span class="function"><span class="keyword">public</span> URLConnection <span class="title">openConnection</span><span class="params">()</span> </span></div><div class="line">		<span class="keyword">throws</span> java.io.IOException</div><div class="line"><span class="comment">// 2</span></div><div class="line"><span class="keyword">public</span> URLConnection <span class="title">openConnection</span><span class="params">(Proxy proxy)</span></div><div class="line">        <span class="keyword">throws</span> java.io.IOException</div><div class="line"></div><div class="line"><span class="comment">// 3</span></div><div class="line"><span class="comment">// 调用该方法客户端和服务器会进行连接</span></div><div class="line"><span class="comment">// 返回的InputStream对象可以读取资源，但不包括连接信息</span></div><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> InputStream <span class="title">openStream</span><span class="params">()</span> </div><div class="line">		<span class="keyword">throws</span> java.io.IOException &#123;</div><div class="line">	<span class="keyword">return</span> openConnection().getInputStream();</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 4</span></div><div class="line"><span class="comment">// 这个方法直接获取url的数据（openStream需要自己去获取数据）</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Object <span class="title">getContent</span><span class="params">()</span> <span class="keyword">throws</span> java.io.IOException </span>&#123;</div><div class="line">	<span class="keyword">return</span> openConnection().getContent();</div><div class="line">&#125;</div><div class="line"><span class="comment">// 5</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Object <span class="title">getContent</span><span class="params">(Class[] classes)</span></span></div><div class="line">    	<span class="keyword">throws</span> java.io.IOException &#123;</div><div class="line">	<span class="keyword">return</span> openConnection().getContent(classes);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>从以上5个方法最重要的是<strong>URLConnection openConnection()</strong></p>
+<p>方法3， 4， 5都是通过1中返回的URLConnection来进一步获取结果的。</p>
+<h1 id="toString-和-toExternalForm"><a href="#toString-和-toExternalForm" class="headerlink" title="toString 和 toExternalForm"></a>toString 和 toExternalForm</h1><p>这两个方法其实是一样的，toString()内部调用的是toExternalForm()。</p>
+<h1 id="toURI"><a href="#toURI" class="headerlink" title="toURI"></a>toURI</h1><p>可以将一个URL转化为一个URI，URI将在java.net.URI中再介绍。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> URI <span class="title">toURI</span><span class="params">()</span> <span class="keyword">throws</span> URISyntaxException</span></div></pre></td></tr></table></figure>
+<h1 id="参考："><a href="#参考：" class="headerlink" title="参考："></a>参考：</h1><ol>
+<li>维基百科：<a href="https://en.wikipedia.org/wiki/Uniform_Resource_Identifier" target="_blank" rel="external">https://en.wikipedia.org/wiki/Uniform_Resource_Identifier</a></li>
+<li>《java网络编程》（第四版）</li>
+</ol>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2016/10/29/java学习计划/" itemprop="url">
                   java学习计划
                 </a>
@@ -638,7 +786,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">8</span>
+              <span class="site-state-item-count">9</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
@@ -646,7 +794,7 @@
           
             <div class="site-state-item site-state-categories">
               <a href="/categories">
-                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-count">5</span>
                 <span class="site-state-item-name">分类</span>
               </a>
             </div>
