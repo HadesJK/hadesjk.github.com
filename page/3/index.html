@@ -246,6 +246,258 @@
             
               
                 
+                <a class="post-title-link" href="/2016/10/29/java学习计划/" itemprop="url">
+                  java学习计划
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2016-10-29T11:16:14+08:00" content="2016-10-29">
+              2016-10-29
+            </time>
+          </span>
+
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>之前接触过C语言，C++，C#，Python和java，使用最长的还是java。</p>
+<p>翻了翻印象笔记，也写了不少了，但是都很零碎，没有什么系统性，看到什么想到什么随便记一点。</p>
+<p>很多笔记也是前辈的博客抄过来的。</p>
+<p>大致想了一下，暂时从以下几个方面再系统学习下吧，之后有想法了再更新。</p>
+<ol>
+<li>java网络编程</li>
+<li>netty4</li>
+<li>rocketMq</li>
+<li>zookeeper</li>
+<li>dubbo</li>
+</ol>
+<p>当然作为一个java攻城狮，还要使用基本的工具。</p>
+<ol>
+<li>git</li>
+<li>maven</li>
+<li>intellij idea or eclipse</li>
+</ol>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2016/10/28/slf4j/" itemprop="url">
+                  slf4j
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2016-10-28T13:29:16+08:00" content="2016-10-28">
+              2016-10-28
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><strong>之前的个人博客使用jekyll搭建的，换了个mac，发现在本地用gem install jekyll完全装不了。</strong></p>
+<p><strong>在一只狗头的推荐下，开始使用hexo，很不错。</strong></p>
+<p><strong>重新开始，那么从前几天我在团队中分享的slf4j开始吧。</strong></p>
+<h1 id="java-日志"><a href="#java-日志" class="headerlink" title="java 日志"></a>java 日志</h1><p>当前java中存在的日志方案有很多种，但是主流的用法是接口+实现。</p>
+<p>Simple Logging Facade for Java (SLF4J) 是一款优秀的框架，相信很多软件攻城狮早已经使用了。</p>
+<p>网站: <a href="http://www.slf4j.org/" target="_blank" rel="external">http://www.slf4j.org/</a></p>
+<p>但是除了slf4j之外，还有 Jakarta Commons-Logging（jcl） ，Spring就是使用这个的。</p>
+<p>这篇文章主要分析在java工程中，如何接日志。</p>
+<h1 id="接口-or-实现"><a href="#接口-or-实现" class="headerlink" title="接口 or 实现"></a>接口 or 实现</h1><p>面向接口的编程是大家提倡的，因此代码中，日志一般使用接口，而具体什么实现，由使用方自己决定。</p>
+<p>我所了解到的主流接法是 slf4j + logback 的组合。</p>
+<p>slf4j，logback，log4j和log4j2 都是同一个作者。</p>
+<h1 id="多种接口和实现的统一"><a href="#多种接口和实现的统一" class="headerlink" title="多种接口和实现的统一"></a>多种接口和实现的统一</h1><p>一个常见的工程，往往会使用到多种依赖，而这些依赖会使用不同的日志接口，甚至有些依赖本身就不是面向接口的编程。</p>
+<p>因此如果不采用统一的日志，那么各种日志会以不同的形式出现，难以管理。</p>
+<p>如常见的一个SpringMvc工程，如果使用者采用slf4j，这时候就会出现slf4j+jcl共存的情况。</p>
+<p>slf4j的网站上给出了如何处理这种常见的多种接口和实现的统一。</p>
+<p>假设一个工程中用了2个依赖，分别是A，B，而使用者想用slf4j+logback。</p>
+<ul>
+<li>A使用了jcl</li>
+<li>B使用了log4j（B在编写中，没有采用面向接口的编程）</li>
+</ul>
+<p>这时候，应该拆除依赖A和B中的jcl和log4j，并且加入依赖slf4j和logback。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">properties</span>&gt;</span></div><div class="line">	<span class="tag">&lt;<span class="name">slf4j.version</span>&gt;</span>1.7.21<span class="tag">&lt;/<span class="name">slf4j.version</span>&gt;</span></div><div class="line">	<span class="tag">&lt;<span class="name">logback.version</span>&gt;</span>1.1.7<span class="tag">&lt;/<span class="name">logback.version</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">properties</span>&gt;</span></div><div class="line"></div><div class="line">   <span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></div><div class="line">   	<span class="comment">&lt;!-- A排除jcl --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>xxx.A.xxx<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>A<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;A.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">exclusions</span>&gt;</span></div><div class="line">               <span class="tag">&lt;<span class="name">exclusion</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>commons-logging<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>commons-logging<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">               <span class="tag">&lt;/<span class="name">exclusion</span>&gt;</span></div><div class="line">           <span class="tag">&lt;/<span class="name">exclusions</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- B排除log4j --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>xxx.B.xxx<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>B<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;B.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">exclusions</span>&gt;</span></div><div class="line">               <span class="tag">&lt;<span class="name">exclusion</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">                   <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">               <span class="tag">&lt;/<span class="name">exclusion</span>&gt;</span></div><div class="line">           <span class="tag">&lt;/<span class="name">exclusions</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- 加入slf4j --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>log4j-over-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;slf4j.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line"></div><div class="line">       <span class="comment">&lt;!-- 加入logback --&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>ch.qos.logback<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>logback-core<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;logback.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>ch.qos.logback<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>logback-classic<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;logback.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div><div class="line">   <span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>现实中很少会遇到其它日志框架，如果遇到了jul，因为这是jdk的一部分，那么肯定不能在pom中将它排除掉。</p>
+<p>需要在代码中加入：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">SLF4JBridgeHandler.removeHandlersForRootLogger();</div><div class="line">SLF4JBridgeHandler.install();</div></pre></td></tr></table></figure>
+<p>在pom中加入转接依赖：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.slf4j<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jul-to-slf4j<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;slf4j.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></div></pre></td></tr></table></figure>
+<p>然后就可以将jul的日志转到slf4j了，但是性能不好，官网有提示。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>用一副图来总结用法。</p>
+<p><img src="/images/java/slf4j-1.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2016/10/28/fighting-md/" itemprop="url">
                   重新开始
                 </a>
@@ -386,7 +638,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">11</span>
+              <span class="site-state-item-count">13</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>

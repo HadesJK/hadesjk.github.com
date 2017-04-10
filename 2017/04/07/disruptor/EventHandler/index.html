@@ -1,0 +1,594 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.0.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.2" />
+
+
+
+
+
+
+<meta name="description" content="EventHandler消费者远比生产者复杂
+首先介绍消费者必须实现的一个接口： EventHandler消费者对数据的处理是在 EventHandler#onEvent 中实现的
+1234567891011public interface EventHandler&amp;lt;T&amp;gt; &amp;#123;    /**     * Called when a publisher has published">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EventHandler">
+<meta property="og:url" content="http://yoursite.com/2017/04/07/disruptor/EventHandler/index.html">
+<meta property="og:site_name" content="一饭的博客">
+<meta property="og:description" content="EventHandler消费者远比生产者复杂
+首先介绍消费者必须实现的一个接口： EventHandler消费者对数据的处理是在 EventHandler#onEvent 中实现的
+1234567891011public interface EventHandler&amp;lt;T&amp;gt; &amp;#123;    /**     * Called when a publisher has published">
+<meta property="og:image" content="http://yoursite.com/images/disruptor/EventProcessor.png">
+<meta property="og:updated_time" content="2017-04-10T02:14:22.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="EventHandler">
+<meta name="twitter:description" content="EventHandler消费者远比生产者复杂
+首先介绍消费者必须实现的一个接口： EventHandler消费者对数据的处理是在 EventHandler#onEvent 中实现的
+1234567891011public interface EventHandler&amp;lt;T&amp;gt; &amp;#123;    /**     * Called when a publisher has published">
+<meta name="twitter:image" content="http://yoursite.com/images/disruptor/EventProcessor.png">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    }
+  };
+</script>
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/04/07/disruptor/EventHandler/"/>
+
+
+  <title> EventHandler | 一饭的博客 </title>
+</head>
+
+<body itemscope itemtype="//schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="//schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">一饭的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">对不起没有</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/me" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于我
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                EventHandler
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-04-07T11:39:04+08:00" content="2017-04-07">
+              2017-04-07
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/disruptor/" itemprop="url" rel="index">
+                    <span itemprop="name">disruptor</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="EventHandler"><a href="#EventHandler" class="headerlink" title="EventHandler"></a>EventHandler</h1><p>消费者远比生产者复杂</p>
+<p>首先介绍消费者必须实现的一个接口： EventHandler<br>消费者对数据的处理是在 EventHandler#onEvent 中实现的</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">EventHandler</span>&lt;<span class="title">T</span>&gt; </span>&#123;</div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Called when a publisher has published an event to the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> event      published to the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     * <span class="doctag">@param</span> sequence   of the event being processed</div><div class="line">     * <span class="doctag">@param</span> endOfBatch flag to indicate if this is the last event in a batch from the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     * <span class="doctag">@throws</span> Exception if the EventHandler would like the exception handled further up the chain.</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onEvent</span><span class="params">(T event, <span class="keyword">long</span> sequence, <span class="keyword">boolean</span> endOfBatch)</span> <span class="keyword">throws</span> Exception</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这个接口的实现类会被分装成一个 BatchEventProcessor<t> 对象，而 BatchEventProcessor 又实现自接口 EventProcessor</t></p>
+<p><img src="/images/disruptor/EventProcessor.png" alt="EventProcessor"></p>
+<h1 id="EventProcessor"><a href="#EventProcessor" class="headerlink" title="EventProcessor"></a>EventProcessor</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">EventProcessor</span> <span class="keyword">extends</span> <span class="title">Runnable</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 获取消费者自身的 Sequence</div><div class="line">     * 消费者的 Sequence 用来记录消费者最大处理完的序号</div><div class="line">     *</div><div class="line">     * <span class="doctag">@return</span></div><div class="line">     */</div><div class="line">    <span class="function">Sequence <span class="title">getSequence</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 当调用这个方法后，消费者在处理完当前事件后，将会停止消费 RingBuffer 中的事件</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">halt</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 指示消费者是否在运行状态</div><div class="line">     *</div><div class="line">     * <span class="doctag">@return</span></div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isRunning</span><span class="params">()</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="BatchEventProcessor"><a href="#BatchEventProcessor" class="headerlink" title="BatchEventProcessor"></a>BatchEventProcessor</h1><p>这是个批处理的对象，即消费者可以批量处理 RingBuffer 中的事件</p>
+<p>因为消费者实现了 EventHandler 接口，但是这个接口的实现类是用户提供的，<br>而消费者是需要记录自身消费 RingBuffer 位置信息的数据 Sequence<br>因此可知 BatchEventProcessor 中需要对这里进行处理</p>
+<p>这个类只需要关注下几个字段和一个方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> AtomicBoolean running = <span class="keyword">new</span> AtomicBoolean(<span class="keyword">false</span>);</div><div class="line"><span class="comment">// 异常处理器</span></div><div class="line"><span class="keyword">private</span> ExceptionHandler&lt;? <span class="keyword">super</span> T&gt; exceptionHandler = <span class="keyword">new</span> FatalExceptionHandler();</div><div class="line"><span class="comment">// 消费者的数据源，即 RingBuffer</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> DataProvider&lt;T&gt; dataProvider;</div><div class="line"><span class="comment">// 栅栏，消费者和 RingBuffer 交互的工具</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> SequenceBarrier sequenceBarrier;</div><div class="line"><span class="comment">// 消费者处理器</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> EventHandler&lt;? <span class="keyword">super</span> T&gt; eventHandler;</div><div class="line"><span class="comment">// 消费者自己的序列(记录处理完成的最大序列，即消费到 RingBuffer 的位置)</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Sequence sequence = <span class="keyword">new</span> Sequence(Sequencer.INITIAL_CURSOR_VALUE);</div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> TimeoutHandler timeoutHandler;</div></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (!running.compareAndSet(<span class="keyword">false</span>, <span class="keyword">true</span>)) &#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Thread is already running"</span>);</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 清除前置序号关卡的通知状态</span></div><div class="line">    sequenceBarrier.clearAlert();</div><div class="line">    notifyStart();</div><div class="line">    T event = <span class="keyword">null</span>;</div><div class="line">    <span class="comment">// sequence.get()标示当前已经处理的序号</span></div><div class="line">    <span class="comment">// Sequence 初始值是 -1</span></div><div class="line">    <span class="comment">// 因此消费者处理的序号从 0 开始递增</span></div><div class="line">    <span class="keyword">long</span> nextSequence = sequence.get() + <span class="number">1L</span>;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                <span class="comment">// 从它的前置序号关卡获取下一个可处理的事件序号。</span></div><div class="line">                <span class="comment">// 如果这个事件处理器不依赖于其他的事件处理器，则前置关卡就是生产者序号；</span></div><div class="line">                <span class="comment">// 如果这个事件处理器依赖于1个或多个事件处理器，那么这个前置关卡就是这些前置事中最慢的一个。</span></div><div class="line">                <span class="comment">// 通过这样，可以确保事件处理器不会超前处理地事件。</span></div><div class="line">                <span class="keyword">final</span> <span class="keyword">long</span> availableSequence = sequenceBarrier.waitFor(nextSequence);</div><div class="line">                <span class="comment">// 处理一批事件</span></div><div class="line">                <span class="keyword">while</span> (nextSequence &lt;= availableSequence) &#123;</div><div class="line">                    event = dataProvider.get(nextSequence);</div><div class="line">                    eventHandler.onEvent(event, nextSequence, nextSequenceavailableSequence);</div><div class="line">                    nextSequence++;</div><div class="line">                &#125;</div><div class="line">                <span class="comment">// 处理完之后，设置自己最后处理完成的事件序号</span></div><div class="line">                sequence.set(availableSequence);</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> TimeoutException e) &#123;</div><div class="line">                <span class="comment">// 获取事件序号超时处理</span></div><div class="line">                notifyTimeout(sequence.get());</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> AlertException ex) &#123;</div><div class="line">                <span class="comment">// 处理通知事件；检测是否要停止，如果非则继续处理事件</span></div><div class="line">                <span class="keyword">if</span> (!running.get()) &#123;</div><div class="line">                    <span class="keyword">break</span>;</div><div class="line">                &#125;</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> Throwable ex) &#123;</div><div class="line">                <span class="comment">// 其他异常，用异常处理器处理；然后继续处理下一个事件</span></div><div class="line">                exceptionHandler.handleEventException(ex, nextSequence, event);</div><div class="line">                sequence.set(nextSequence);</div><div class="line">                nextSequence++;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125; <span class="keyword">finally</span> &#123;</div><div class="line">        notifyShutdown();</div><div class="line">        running.set(<span class="keyword">false</span>);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/04/07/disruptor/Producer/" rel="next" title="生产者发布事件">
+                <i class="fa fa-chevron-left"></i> 生产者发布事件
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/04/10/disruptor/SequenceBarrier and WaitStrategy/" rel="prev" title="Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy">
+                Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="//schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/yifan/husky.jpeg"
+               alt="一饭" />
+          <p class="site-author-name" itemprop="name">一饭</p>
+          <p class="site-description motion-element" itemprop="description"></p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">13</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#EventHandler"><span class="nav-number">1.</span> <span class="nav-text">EventHandler</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#EventProcessor"><span class="nav-number">2.</span> <span class="nav-text">EventProcessor</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BatchEventProcessor"><span class="nav-number">3.</span> <span class="nav-text">BatchEventProcessor</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">一饭</span>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.2"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.2"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>

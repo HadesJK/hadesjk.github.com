@@ -1,0 +1,629 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.0.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.2" />
+
+
+
+
+
+
+<meta name="description" content="之前分析了生产者，disruptor 对消费者的封装比较复杂
+首先需要介绍 SequenceBarrier 和 WaitStrategy
+SequenceBarrier 是给消费者独用的
+WaitStrategy 有2个方法，分别给生产者和消费者使用
+SequenceBarrier
+SequenceBarrier 是给消费者使用的，通过 SequenceBarrier ，消费者可以实现一些复杂的序">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy">
+<meta property="og:url" content="http://yoursite.com/2017/04/10/disruptor/SequenceBarrier and WaitStrategy/index.html">
+<meta property="og:site_name" content="一饭的博客">
+<meta property="og:description" content="之前分析了生产者，disruptor 对消费者的封装比较复杂
+首先需要介绍 SequenceBarrier 和 WaitStrategy
+SequenceBarrier 是给消费者独用的
+WaitStrategy 有2个方法，分别给生产者和消费者使用
+SequenceBarrier
+SequenceBarrier 是给消费者使用的，通过 SequenceBarrier ，消费者可以实现一些复杂的序">
+<meta property="og:image" content="http://yoursite.com/images/SequenceBarrier.png">
+<meta property="og:updated_time" content="2017-04-10T12:51:17.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy">
+<meta name="twitter:description" content="之前分析了生产者，disruptor 对消费者的封装比较复杂
+首先需要介绍 SequenceBarrier 和 WaitStrategy
+SequenceBarrier 是给消费者独用的
+WaitStrategy 有2个方法，分别给生产者和消费者使用
+SequenceBarrier
+SequenceBarrier 是给消费者使用的，通过 SequenceBarrier ，消费者可以实现一些复杂的序">
+<meta name="twitter:image" content="http://yoursite.com/images/SequenceBarrier.png">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    }
+  };
+</script>
+
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/04/10/disruptor/SequenceBarrier and WaitStrategy/"/>
+
+
+  <title> Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy | 一饭的博客 </title>
+</head>
+
+<body itemscope itemtype="//schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="//schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">一饭的博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">对不起没有</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/me" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于我
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-04-10T10:12:35+08:00" content="2017-04-10">
+              2017-04-10
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/disruptor/" itemprop="url" rel="index">
+                    <span itemprop="name">disruptor</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>之前分析了生产者，disruptor 对消费者的封装比较复杂</p>
+<p>首先需要介绍 SequenceBarrier 和 WaitStrategy</p>
+<p>SequenceBarrier 是给消费者独用的</p>
+<p>WaitStrategy 有2个方法，分别给生产者和消费者使用</p>
+<h1 id="SequenceBarrier"><a href="#SequenceBarrier" class="headerlink" title="SequenceBarrier"></a>SequenceBarrier</h1><p><img src="/images/SequenceBarrier.png" alt="SequenceBarrier"></p>
+<p>SequenceBarrier 是给消费者使用的，<br>通过 SequenceBarrier ，消费者可以实现一些复杂的序号操作</p>
+<p>当前他只有一个实现类 ProcessingSequenceBarrier</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ProcessingSequenceBarrier</span> <span class="keyword">implements</span> <span class="title">SequenceBarrier</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">// 等待策略(下面分析)</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> WaitStrategy waitStrategy;</div><div class="line"></div><div class="line">    <span class="comment">// 前置依赖序号</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequence dependentSequence;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">boolean</span> alerted = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">    <span class="comment">// RingBuffer 的序号</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequence cursorSequence;</div><div class="line"></div><div class="line">    <span class="comment">// 生产者的序号控制器</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequencer sequencer;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * <span class="doctag">@param</span> sequencer          生产者序号控制器</div><div class="line">     * <span class="doctag">@param</span> waitStrategy       等待策略</div><div class="line">     * <span class="doctag">@param</span> cursorSequence     RingBuffer 的序号</div><div class="line">     * <span class="doctag">@param</span> dependentSequences 依赖的前置 Sequence(前置消费者的 Sequence)</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ProcessingSequenceBarrier</span><span class="params">(<span class="keyword">final</span> Sequencer sequencer, <span class="keyword">final</span> WaitStrategy waitStrategy,</span></span></div><div class="line">                                     <span class="keyword">final</span> Sequence cursorSequence, <span class="keyword">final</span> Sequence[] dependentSequences) &#123;</div><div class="line">        <span class="keyword">this</span>.sequencer = sequencer;</div><div class="line">        <span class="keyword">this</span>.waitStrategy = waitStrategy;</div><div class="line">        <span class="keyword">this</span>.cursorSequence = cursorSequence;</div><div class="line">        <span class="keyword">if</span> (<span class="number">0</span> == dependentSequences.length) &#123;</div><div class="line">            <span class="comment">// 如果消费者不依赖于任何前置消费者，那么dependentSequence也指向生产者的序号</span></div><div class="line">            dependentSequence = cursorSequence;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            <span class="comment">// 如果消费者依赖其它前置消费者，则记录这些前置消费者的序号</span></div><div class="line">            <span class="comment">// 这种情况下，当前消费者需要等待前置消费者处理完一个事件后，才能对该事件进行处理</span></div><div class="line">            <span class="comment">// 比如序号16的事件，对于的业务是 A 对 B 转账：</span></div><div class="line">            <span class="comment">// 1. 先减 A 的钱(消费者1) 2. 再加 B 的钱(消费者2)</span></div><div class="line">            <span class="comment">// 这种情况下可以设置为 B 的 dependentSequence 设置成 A 的序号</span></div><div class="line">            dependentSequence = <span class="keyword">new</span> FixedSequenceGroup(dependentSequences);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 该方法不保证总是返回未处理的序号；</div><div class="line">     * 如果有更多的可处理序号时，返回的序号也可能是超过指定序号的。</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> sequence)</span> <span class="keyword">throws</span> AlertException, InterruptedException, TimeoutException </span>&#123;</div><div class="line">        <span class="comment">// 检查消费者是否被终止</span></div><div class="line">        checkAlert();</div><div class="line">        <span class="comment">// 通过等待策略来获取可处理事件序号</span></div><div class="line">        <span class="comment">// 4个参数分别是：期望获取的序号，RingBuffer 的当前序号，依赖的前置序号，当前 SequenceBarrier</span></div><div class="line">        <span class="keyword">long</span> availableSequence = waitStrategy.waitFor(sequence, cursorSequence, dependentSequence, <span class="keyword">this</span>);</div><div class="line">        <span class="comment">// 这个方法不保证总是返回可处理的序号</span></div><div class="line">        <span class="keyword">if</span> (availableSequence &lt; sequence) &#123;</div><div class="line">            <span class="keyword">return</span> availableSequence;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 再通过生产者序号控制器返回最大的可处理序号</span></div><div class="line">        <span class="keyword">return</span> sequencer.getHighestPublishedSequence(sequence, availableSequence);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 返回一个当前可以读取的序号值</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getCursor</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> dependentSequence.get();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isAlerted</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> alerted;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">alert</span><span class="params">()</span> </span>&#123;</div><div class="line">        alerted = <span class="keyword">true</span>;</div><div class="line">        waitStrategy.signalAllWhenBlocking();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">clearAlert</span><span class="params">()</span> </span>&#123;</div><div class="line">        alerted = <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">checkAlert</span><span class="params">()</span> <span class="keyword">throws</span> AlertException </span>&#123;</div><div class="line">        <span class="keyword">if</span> (alerted) &#123;</div><div class="line">            <span class="keyword">throw</span> AlertException.INSTANCE;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="WaitStrategy"><a href="#WaitStrategy" class="headerlink" title="WaitStrategy"></a>WaitStrategy</h1><p>WaitStrategy 放在这里讲可能不太合适，因为他的一个方法别生产者使用，一个方法被消费者使用</p>
+<p>这种情况下，我觉得作者使用可以考虑拆分下接口，<br>比如 接口 ProducerWaitStrategy，里面有 signalAllWhenBlocking<br>接口 ConsumerWaitStrategy，里面有方法 waitFor<br>然后接口 WaitStrategy 实现接口 ProducerWaitStrategy 和 ConsumerWaitStrategy<br>这样子生产者和消费者使用的时候拿到的都是各自的接口，也比较好理解吧</p>
+<p>下面分析这个接口</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * 等待策略</div><div class="line"> * 消费者使用 waitFor() 方法获取 RingBuffer 中可用的序号</div><div class="line"> * 生产者使用 signalAllWhenBlocking() 通知阻塞的消费者获取事件进行处理</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 消费者获取 RingBuffer 当前可用的序号值</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> sequence          期望等待的序号值</div><div class="line">     * <span class="doctag">@param</span> cursor            RingBuffer 的 cursor，即 RingBuffer 的 Sequence</div><div class="line">     * <span class="doctag">@param</span> dependentSequence 依赖的的序号，即消费者可以处理的序号必须 小于等于 dependentSequence</div><div class="line">     * <span class="doctag">@param</span> barrier           栅栏，消费者通过栅栏获取序号</div><div class="line">     * <span class="doctag">@return</span> 返回的 availableSequence 可能大于请求的 sequence</div><div class="line">     * <span class="doctag">@throws</span> AlertException       if the status of the Disruptor has changed.</div><div class="line">     * <span class="doctag">@throws</span> InterruptedException if the thread is interrupted.</div><div class="line">     * <span class="doctag">@throws</span> TimeoutException</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">long</span> sequence, Sequence cursor, Sequence dependentSequence, SequenceBarrier barrier)</span></span></div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException, TimeoutException;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 生产者通知消费者有数据可用</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>WaitStrategy 接口有很多实现类，这里先分析一个典型的</p>
+<h1 id="BlockingWaitStrategy"><a href="#BlockingWaitStrategy" class="headerlink" title="BlockingWaitStrategy"></a>BlockingWaitStrategy</h1><p>这个通过名字可以看出，当消费者获取不到数据时就会阻塞</p>
+<p>BlockingWaitStrategy 内部通过 ReentrantLock 和条件队列 Condition 实现</p>
+<p>waitFor 做了2件事情：</p>
+<ol>
+<li>等待 RingBuffer 事件槽可用(Producer 已经发布事件)</li>
+<li>等待前置依赖处理器处理完成(依赖别的消费者先处理完)</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">BlockingWaitStrategy</span> <span class="keyword">implements</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Lock lock = <span class="keyword">new</span> ReentrantLock();</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Condition processorNotifyCondition = lock.newCondition();</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">long</span> sequence,  // 消费者请求的序号值</span></span></div><div class="line">                        Sequence cursorSequence,    // RingBuffer 的序号</div><div class="line">                        Sequence dependentSequence, // 消费者依赖的序号</div><div class="line">                        SequenceBarrier barrier)    <span class="comment">// 栅栏</span></div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException &#123;</div><div class="line">        <span class="keyword">long</span> availableSequence;</div><div class="line">        <span class="keyword">if</span> (cursorSequence.get() &lt; sequence) &#123;</div><div class="line">            lock.lock();</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                <span class="comment">// 无限等待直到 RingBuffer 有数据可用</span></div><div class="line">                <span class="comment">// 可以通过 barrier.checkAlert() 异常退出</span></div><div class="line">                <span class="keyword">while</span> (cursorSequence.get() &lt; sequence) &#123;</div><div class="line">                    barrier.checkAlert();</div><div class="line">                    processorNotifyCondition.await();</div><div class="line">                &#125;</div><div class="line">            &#125; <span class="keyword">finally</span> &#123;</div><div class="line">                lock.unlock();</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 这个 while 确保消费者依赖的序号已经在处理了，即实现先后消费</span></div><div class="line">        <span class="comment">// 同样支持 barrier.checkAlert() 异常退出</span></div><div class="line">        <span class="comment">// 这里 是 &lt; 符号</span></div><div class="line">        <span class="comment">// 消费者只有将数据处理完了之后才会设置自身的 Sequence</span></div><div class="line">        <span class="comment">// 也就是说 通过消费者的 Sequence.get() 获取的表示消费者已经处理好的最大序号</span></div><div class="line">        <span class="keyword">while</span> ((availableSequence = dependentSequence.get()) &lt; sequence) &#123;</div><div class="line">            barrier.checkAlert();</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> availableSequence;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span> </span>&#123;</div><div class="line">        lock.lock();</div><div class="line">        <span class="keyword">try</span> &#123;</div><div class="line">            processorNotifyCondition.signalAll();</div><div class="line">        &#125; <span class="keyword">finally</span> &#123;</div><div class="line">            lock.unlock();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="string">"BlockingWaitStrategy&#123;"</span> +</div><div class="line">                <span class="string">"processorNotifyCondition="</span> + processorNotifyCondition +</div><div class="line">                <span class="string">'&#125;'</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="BusySpinWaitStrategy"><a href="#BusySpinWaitStrategy" class="headerlink" title="BusySpinWaitStrategy"></a>BusySpinWaitStrategy</h1><p>从命名上看，以为是 CPU 忙转<br>看了源码，发现并不能确切的表达这里意思</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">BusySpinWaitStrategy</span> <span class="keyword">implements</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(</span></span></div><div class="line">            <span class="keyword">final</span> <span class="keyword">long</span> sequence, Sequence cursor, <span class="keyword">final</span> Sequence dependentSequence, <span class="keyword">final</span> SequenceBarrier barrier)</div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException &#123;</div><div class="line">        <span class="keyword">long</span> availableSequence;</div><div class="line">        <span class="comment">// 等待前置处理器处理完成</span></div><div class="line">        <span class="keyword">while</span> ((availableSequence = dependentSequence.get()) &lt; sequence) &#123;</div><div class="line">            barrier.checkAlert();</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> availableSequence;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span> </span>&#123;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>因为里面没有阻塞，所以 signalAllWhenBlocking 方法体是空的<br>waitFor 方法只做了一件事情，等待前置处理器处理完成</p>
+<ol>
+<li>比如 前置处理器 B 处理完序号19，而 RingBuffer 目前的序号(Curator)也是20<br>(可以推断这时候前置处理器应该可能在处理序号20，也可能在等待它的前置处理器)</li>
+</ol>
+<p>当前处理器 A 去请求19，获取到19可处理，进行处理</p>
+<ol>
+<li><p>然后当前处理器 A 去请求20，<br>如果前置处理器 B 未完成对 20 的槽的事件处理完，当前处理器 A 通过waitFor方法，一直在while循环</p>
+</li>
+<li><p>过了一段时间，当前置处理器 B 处理完了，A 走出 while</p>
+</li>
+<li><p>然后 A 处理 20 的槽</p>
+</li>
+<li><p>再此进入 waitFor，请求 21，这个时候 while 判断 true，一直在这里空转</p>
+</li>
+</ol>
+<p>因此 BusySpin 的含义得到了体现</p>
+<p>分析: BusySpinWaitStrategy#waitFor 返回的序号肯定是未处理的？<br>(前提是消费者正确的请求，即不能处理完序号 n，然后继续请求序号n)</p>
+<p>答案：不是！<br>在多生产者的情况下，通过 Sequencer.getHighestPublishedSequence 方法，<br>返回的是最小的可用序号，看案例：<br>多生产者中，当生产者1获取到序号 13，生产者2获取到14；生产者1没发布，生产者2发布，会导致获取的可用序号为12，而sequence为13！<br>消费者通过 WaitStrategy 获得的序号是 13，但是再通过 MultiProducerSequencer.getHighestPublishedSequence 返回的是12<br>这时候如果消费者处理完12，请求下一个13时，返回的可用序号仍然是12！<br>这就是为毛消费者获取到序号后，需要自行判断<br>对于的代码段之前已经分析。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/04/07/disruptor/EventHandler/" rel="next" title="EventHandler">
+                <i class="fa fa-chevron-left"></i> EventHandler
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="//schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/yifan/husky.jpeg"
+               alt="一饭" />
+          <p class="site-author-name" itemprop="name">一饭</p>
+          <p class="site-description motion-element" itemprop="description"></p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">13</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#SequenceBarrier"><span class="nav-number">1.</span> <span class="nav-text">SequenceBarrier</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#WaitStrategy"><span class="nav-number">2.</span> <span class="nav-text">WaitStrategy</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BlockingWaitStrategy"><span class="nav-number">3.</span> <span class="nav-text">BlockingWaitStrategy</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BusySpinWaitStrategy"><span class="nav-number">4.</span> <span class="nav-text">BusySpinWaitStrategy</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">一饭</span>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.2"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.2"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>

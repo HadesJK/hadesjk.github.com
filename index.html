@@ -246,8 +246,284 @@
             
               
                 
+                <a class="post-title-link" href="/2017/04/10/disruptor/SequenceBarrier and WaitStrategy/" itemprop="url">
+                  Disruptor 源码分析三：SequenceBarrier 和 WaitStrategy
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-04-10T10:12:35+08:00" content="2017-04-10">
+              2017-04-10
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/disruptor/" itemprop="url" rel="index">
+                    <span itemprop="name">disruptor</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>之前分析了生产者，disruptor 对消费者的封装比较复杂</p>
+<p>首先需要介绍 SequenceBarrier 和 WaitStrategy</p>
+<p>SequenceBarrier 是给消费者独用的</p>
+<p>WaitStrategy 有2个方法，分别给生产者和消费者使用</p>
+<h1 id="SequenceBarrier"><a href="#SequenceBarrier" class="headerlink" title="SequenceBarrier"></a>SequenceBarrier</h1><p><img src="/images/SequenceBarrier.png" alt="SequenceBarrier"></p>
+<p>SequenceBarrier 是给消费者使用的，<br>通过 SequenceBarrier ，消费者可以实现一些复杂的序号操作</p>
+<p>当前他只有一个实现类 ProcessingSequenceBarrier</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ProcessingSequenceBarrier</span> <span class="keyword">implements</span> <span class="title">SequenceBarrier</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">// 等待策略(下面分析)</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> WaitStrategy waitStrategy;</div><div class="line"></div><div class="line">    <span class="comment">// 前置依赖序号</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequence dependentSequence;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">boolean</span> alerted = <span class="keyword">false</span>;</div><div class="line"></div><div class="line">    <span class="comment">// RingBuffer 的序号</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequence cursorSequence;</div><div class="line"></div><div class="line">    <span class="comment">// 生产者的序号控制器</span></div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Sequencer sequencer;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * <span class="doctag">@param</span> sequencer          生产者序号控制器</div><div class="line">     * <span class="doctag">@param</span> waitStrategy       等待策略</div><div class="line">     * <span class="doctag">@param</span> cursorSequence     RingBuffer 的序号</div><div class="line">     * <span class="doctag">@param</span> dependentSequences 依赖的前置 Sequence(前置消费者的 Sequence)</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ProcessingSequenceBarrier</span><span class="params">(<span class="keyword">final</span> Sequencer sequencer, <span class="keyword">final</span> WaitStrategy waitStrategy,</span></span></div><div class="line">                                     <span class="keyword">final</span> Sequence cursorSequence, <span class="keyword">final</span> Sequence[] dependentSequences) &#123;</div><div class="line">        <span class="keyword">this</span>.sequencer = sequencer;</div><div class="line">        <span class="keyword">this</span>.waitStrategy = waitStrategy;</div><div class="line">        <span class="keyword">this</span>.cursorSequence = cursorSequence;</div><div class="line">        <span class="keyword">if</span> (<span class="number">0</span> == dependentSequences.length) &#123;</div><div class="line">            <span class="comment">// 如果消费者不依赖于任何前置消费者，那么dependentSequence也指向生产者的序号</span></div><div class="line">            dependentSequence = cursorSequence;</div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">            <span class="comment">// 如果消费者依赖其它前置消费者，则记录这些前置消费者的序号</span></div><div class="line">            <span class="comment">// 这种情况下，当前消费者需要等待前置消费者处理完一个事件后，才能对该事件进行处理</span></div><div class="line">            <span class="comment">// 比如序号16的事件，对于的业务是 A 对 B 转账：</span></div><div class="line">            <span class="comment">// 1. 先减 A 的钱(消费者1) 2. 再加 B 的钱(消费者2)</span></div><div class="line">            <span class="comment">// 这种情况下可以设置为 B 的 dependentSequence 设置成 A 的序号</span></div><div class="line">            dependentSequence = <span class="keyword">new</span> FixedSequenceGroup(dependentSequences);</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 该方法不保证总是返回未处理的序号；</div><div class="line">     * 如果有更多的可处理序号时，返回的序号也可能是超过指定序号的。</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">final</span> <span class="keyword">long</span> sequence)</span> <span class="keyword">throws</span> AlertException, InterruptedException, TimeoutException </span>&#123;</div><div class="line">        <span class="comment">// 检查消费者是否被终止</span></div><div class="line">        checkAlert();</div><div class="line">        <span class="comment">// 通过等待策略来获取可处理事件序号</span></div><div class="line">        <span class="comment">// 4个参数分别是：期望获取的序号，RingBuffer 的当前序号，依赖的前置序号，当前 SequenceBarrier</span></div><div class="line">        <span class="keyword">long</span> availableSequence = waitStrategy.waitFor(sequence, cursorSequence, dependentSequence, <span class="keyword">this</span>);</div><div class="line">        <span class="comment">// 这个方法不保证总是返回可处理的序号</span></div><div class="line">        <span class="keyword">if</span> (availableSequence &lt; sequence) &#123;</div><div class="line">            <span class="keyword">return</span> availableSequence;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 再通过生产者序号控制器返回最大的可处理序号</span></div><div class="line">        <span class="keyword">return</span> sequencer.getHighestPublishedSequence(sequence, availableSequence);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 返回一个当前可以读取的序号值</span></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getCursor</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> dependentSequence.get();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isAlerted</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> alerted;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">alert</span><span class="params">()</span> </span>&#123;</div><div class="line">        alerted = <span class="keyword">true</span>;</div><div class="line">        waitStrategy.signalAllWhenBlocking();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">clearAlert</span><span class="params">()</span> </span>&#123;</div><div class="line">        alerted = <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">checkAlert</span><span class="params">()</span> <span class="keyword">throws</span> AlertException </span>&#123;</div><div class="line">        <span class="keyword">if</span> (alerted) &#123;</div><div class="line">            <span class="keyword">throw</span> AlertException.INSTANCE;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="WaitStrategy"><a href="#WaitStrategy" class="headerlink" title="WaitStrategy"></a>WaitStrategy</h1><p>WaitStrategy 放在这里讲可能不太合适，因为他的一个方法别生产者使用，一个方法被消费者使用</p>
+<p>这种情况下，我觉得作者使用可以考虑拆分下接口，<br>比如 接口 ProducerWaitStrategy，里面有 signalAllWhenBlocking<br>接口 ConsumerWaitStrategy，里面有方法 waitFor<br>然后接口 WaitStrategy 实现接口 ProducerWaitStrategy 和 ConsumerWaitStrategy<br>这样子生产者和消费者使用的时候拿到的都是各自的接口，也比较好理解吧</p>
+<p>下面分析这个接口</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * 等待策略</div><div class="line"> * 消费者使用 waitFor() 方法获取 RingBuffer 中可用的序号</div><div class="line"> * 生产者使用 signalAllWhenBlocking() 通知阻塞的消费者获取事件进行处理</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 消费者获取 RingBuffer 当前可用的序号值</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> sequence          期望等待的序号值</div><div class="line">     * <span class="doctag">@param</span> cursor            RingBuffer 的 cursor，即 RingBuffer 的 Sequence</div><div class="line">     * <span class="doctag">@param</span> dependentSequence 依赖的的序号，即消费者可以处理的序号必须 小于等于 dependentSequence</div><div class="line">     * <span class="doctag">@param</span> barrier           栅栏，消费者通过栅栏获取序号</div><div class="line">     * <span class="doctag">@return</span> 返回的 availableSequence 可能大于请求的 sequence</div><div class="line">     * <span class="doctag">@throws</span> AlertException       if the status of the Disruptor has changed.</div><div class="line">     * <span class="doctag">@throws</span> InterruptedException if the thread is interrupted.</div><div class="line">     * <span class="doctag">@throws</span> TimeoutException</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">long</span> sequence, Sequence cursor, Sequence dependentSequence, SequenceBarrier barrier)</span></span></div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException, TimeoutException;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 生产者通知消费者有数据可用</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>WaitStrategy 接口有很多实现类，这里先分析一个典型的</p>
+<h1 id="BlockingWaitStrategy"><a href="#BlockingWaitStrategy" class="headerlink" title="BlockingWaitStrategy"></a>BlockingWaitStrategy</h1><p>这个通过名字可以看出，当消费者获取不到数据时就会阻塞</p>
+<p>BlockingWaitStrategy 内部通过 ReentrantLock 和条件队列 Condition 实现</p>
+<p>waitFor 做了2件事情：</p>
+<ol>
+<li>等待 RingBuffer 事件槽可用(Producer 已经发布事件)</li>
+<li>等待前置依赖处理器处理完成(依赖别的消费者先处理完)</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">BlockingWaitStrategy</span> <span class="keyword">implements</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Lock lock = <span class="keyword">new</span> ReentrantLock();</div><div class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Condition processorNotifyCondition = lock.newCondition();</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(<span class="keyword">long</span> sequence,  // 消费者请求的序号值</span></span></div><div class="line">                        Sequence cursorSequence,    // RingBuffer 的序号</div><div class="line">                        Sequence dependentSequence, // 消费者依赖的序号</div><div class="line">                        SequenceBarrier barrier)    <span class="comment">// 栅栏</span></div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException &#123;</div><div class="line">        <span class="keyword">long</span> availableSequence;</div><div class="line">        <span class="keyword">if</span> (cursorSequence.get() &lt; sequence) &#123;</div><div class="line">            lock.lock();</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                <span class="comment">// 无限等待直到 RingBuffer 有数据可用</span></div><div class="line">                <span class="comment">// 可以通过 barrier.checkAlert() 异常退出</span></div><div class="line">                <span class="keyword">while</span> (cursorSequence.get() &lt; sequence) &#123;</div><div class="line">                    barrier.checkAlert();</div><div class="line">                    processorNotifyCondition.await();</div><div class="line">                &#125;</div><div class="line">            &#125; <span class="keyword">finally</span> &#123;</div><div class="line">                lock.unlock();</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 这个 while 确保消费者依赖的序号已经在处理了，即实现先后消费</span></div><div class="line">        <span class="comment">// 同样支持 barrier.checkAlert() 异常退出</span></div><div class="line">        <span class="comment">// 这里 是 &lt; 符号</span></div><div class="line">        <span class="comment">// 消费者只有将数据处理完了之后才会设置自身的 Sequence</span></div><div class="line">        <span class="comment">// 也就是说 通过消费者的 Sequence.get() 获取的表示消费者已经处理好的最大序号</span></div><div class="line">        <span class="keyword">while</span> ((availableSequence = dependentSequence.get()) &lt; sequence) &#123;</div><div class="line">            barrier.checkAlert();</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> availableSequence;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span> </span>&#123;</div><div class="line">        lock.lock();</div><div class="line">        <span class="keyword">try</span> &#123;</div><div class="line">            processorNotifyCondition.signalAll();</div><div class="line">        &#125; <span class="keyword">finally</span> &#123;</div><div class="line">            lock.unlock();</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="string">"BlockingWaitStrategy&#123;"</span> +</div><div class="line">                <span class="string">"processorNotifyCondition="</span> + processorNotifyCondition +</div><div class="line">                <span class="string">'&#125;'</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="BusySpinWaitStrategy"><a href="#BusySpinWaitStrategy" class="headerlink" title="BusySpinWaitStrategy"></a>BusySpinWaitStrategy</h1><p>从命名上看，以为是 CPU 忙转<br>看了源码，发现并不能确切的表达这里意思</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">BusySpinWaitStrategy</span> <span class="keyword">implements</span> <span class="title">WaitStrategy</span> </span>&#123;</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">waitFor</span><span class="params">(</span></span></div><div class="line">            <span class="keyword">final</span> <span class="keyword">long</span> sequence, Sequence cursor, <span class="keyword">final</span> Sequence dependentSequence, <span class="keyword">final</span> SequenceBarrier barrier)</div><div class="line">            <span class="keyword">throws</span> AlertException, InterruptedException &#123;</div><div class="line">        <span class="keyword">long</span> availableSequence;</div><div class="line">        <span class="comment">// 等待前置处理器处理完成</span></div><div class="line">        <span class="keyword">while</span> ((availableSequence = dependentSequence.get()) &lt; sequence) &#123;</div><div class="line">            barrier.checkAlert();</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> availableSequence;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">signalAllWhenBlocking</span><span class="params">()</span> </span>&#123;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>因为里面没有阻塞，所以 signalAllWhenBlocking 方法体是空的<br>waitFor 方法只做了一件事情，等待前置处理器处理完成</p>
+<ol>
+<li>比如 前置处理器 B 处理完序号19，而 RingBuffer 目前的序号(Curator)也是20<br>(可以推断这时候前置处理器应该可能在处理序号20，也可能在等待它的前置处理器)</li>
+</ol>
+<p>当前处理器 A 去请求19，获取到19可处理，进行处理</p>
+<ol>
+<li><p>然后当前处理器 A 去请求20，<br>如果前置处理器 B 未完成对 20 的槽的事件处理完，当前处理器 A 通过waitFor方法，一直在while循环</p>
+</li>
+<li><p>过了一段时间，当前置处理器 B 处理完了，A 走出 while</p>
+</li>
+<li><p>然后 A 处理 20 的槽</p>
+</li>
+<li><p>再此进入 waitFor，请求 21，这个时候 while 判断 true，一直在这里空转</p>
+</li>
+</ol>
+<p>因此 BusySpin 的含义得到了体现</p>
+<p>分析: BusySpinWaitStrategy#waitFor 返回的序号肯定是未处理的？<br>(前提是消费者正确的请求，即不能处理完序号 n，然后继续请求序号n)</p>
+<p>答案：不是！<br>在多生产者的情况下，通过 Sequencer.getHighestPublishedSequence 方法，<br>返回的是最小的可用序号，看案例：<br>多生产者中，当生产者1获取到序号 13，生产者2获取到14；生产者1没发布，生产者2发布，会导致获取的可用序号为12，而sequence为13！<br>消费者通过 WaitStrategy 获得的序号是 13，但是再通过 MultiProducerSequencer.getHighestPublishedSequence 返回的是12<br>这时候如果消费者处理完12，请求下一个13时，返回的可用序号仍然是12！<br>这就是为毛消费者获取到序号后，需要自行判断<br>对于的代码段之前已经分析。</p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2017/04/07/disruptor/EventHandler/" itemprop="url">
+                  EventHandler
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-04-07T11:39:04+08:00" content="2017-04-07">
+              2017-04-07
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/disruptor/" itemprop="url" rel="index">
+                    <span itemprop="name">disruptor</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="EventHandler"><a href="#EventHandler" class="headerlink" title="EventHandler"></a>EventHandler</h1><p>消费者远比生产者复杂</p>
+<p>首先介绍消费者必须实现的一个接口： EventHandler<br>消费者对数据的处理是在 EventHandler#onEvent 中实现的</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">EventHandler</span>&lt;<span class="title">T</span>&gt; </span>&#123;</div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Called when a publisher has published an event to the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> event      published to the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     * <span class="doctag">@param</span> sequence   of the event being processed</div><div class="line">     * <span class="doctag">@param</span> endOfBatch flag to indicate if this is the last event in a batch from the &#123;<span class="doctag">@link</span> RingBuffer&#125;</div><div class="line">     * <span class="doctag">@throws</span> Exception if the EventHandler would like the exception handled further up the chain.</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onEvent</span><span class="params">(T event, <span class="keyword">long</span> sequence, <span class="keyword">boolean</span> endOfBatch)</span> <span class="keyword">throws</span> Exception</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这个接口的实现类会被分装成一个 BatchEventProcessor<t> 对象，而 BatchEventProcessor 又实现自接口 EventProcessor</t></p>
+<p><img src="/images/disruptor/EventProcessor.png" alt="EventProcessor"></p>
+<h1 id="EventProcessor"><a href="#EventProcessor" class="headerlink" title="EventProcessor"></a>EventProcessor</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">EventProcessor</span> <span class="keyword">extends</span> <span class="title">Runnable</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 获取消费者自身的 Sequence</div><div class="line">     * 消费者的 Sequence 用来记录消费者最大处理完的序号</div><div class="line">     *</div><div class="line">     * <span class="doctag">@return</span></div><div class="line">     */</div><div class="line">    <span class="function">Sequence <span class="title">getSequence</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 当调用这个方法后，消费者在处理完当前事件后，将会停止消费 RingBuffer 中的事件</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">halt</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 指示消费者是否在运行状态</div><div class="line">     *</div><div class="line">     * <span class="doctag">@return</span></div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isRunning</span><span class="params">()</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="BatchEventProcessor"><a href="#BatchEventProcessor" class="headerlink" title="BatchEventProcessor"></a>BatchEventProcessor</h1><p>这是个批处理的对象，即消费者可以批量处理 RingBuffer 中的事件</p>
+<p>因为消费者实现了 EventHandler 接口，但是这个接口的实现类是用户提供的，<br>而消费者是需要记录自身消费 RingBuffer 位置信息的数据 Sequence<br>因此可知 BatchEventProcessor 中需要对这里进行处理</p>
+<p>这个类只需要关注下几个字段和一个方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> AtomicBoolean running = <span class="keyword">new</span> AtomicBoolean(<span class="keyword">false</span>);</div><div class="line"><span class="comment">// 异常处理器</span></div><div class="line"><span class="keyword">private</span> ExceptionHandler&lt;? <span class="keyword">super</span> T&gt; exceptionHandler = <span class="keyword">new</span> FatalExceptionHandler();</div><div class="line"><span class="comment">// 消费者的数据源，即 RingBuffer</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> DataProvider&lt;T&gt; dataProvider;</div><div class="line"><span class="comment">// 栅栏，消费者和 RingBuffer 交互的工具</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> SequenceBarrier sequenceBarrier;</div><div class="line"><span class="comment">// 消费者处理器</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> EventHandler&lt;? <span class="keyword">super</span> T&gt; eventHandler;</div><div class="line"><span class="comment">// 消费者自己的序列(记录处理完成的最大序列，即消费到 RingBuffer 的位置)</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Sequence sequence = <span class="keyword">new</span> Sequence(Sequencer.INITIAL_CURSOR_VALUE);</div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> TimeoutHandler timeoutHandler;</div></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (!running.compareAndSet(<span class="keyword">false</span>, <span class="keyword">true</span>)) &#123;</div><div class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Thread is already running"</span>);</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 清除前置序号关卡的通知状态</span></div><div class="line">    sequenceBarrier.clearAlert();</div><div class="line">    notifyStart();</div><div class="line">    T event = <span class="keyword">null</span>;</div><div class="line">    <span class="comment">// sequence.get()标示当前已经处理的序号</span></div><div class="line">    <span class="comment">// Sequence 初始值是 -1</span></div><div class="line">    <span class="comment">// 因此消费者处理的序号从 0 开始递增</span></div><div class="line">    <span class="keyword">long</span> nextSequence = sequence.get() + <span class="number">1L</span>;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                <span class="comment">// 从它的前置序号关卡获取下一个可处理的事件序号。</span></div><div class="line">                <span class="comment">// 如果这个事件处理器不依赖于其他的事件处理器，则前置关卡就是生产者序号；</span></div><div class="line">                <span class="comment">// 如果这个事件处理器依赖于1个或多个事件处理器，那么这个前置关卡就是这些前置事中最慢的一个。</span></div><div class="line">                <span class="comment">// 通过这样，可以确保事件处理器不会超前处理地事件。</span></div><div class="line">                <span class="keyword">final</span> <span class="keyword">long</span> availableSequence = sequenceBarrier.waitFor(nextSequence);</div><div class="line">                <span class="comment">// 处理一批事件</span></div><div class="line">                <span class="keyword">while</span> (nextSequence &lt;= availableSequence) &#123;</div><div class="line">                    event = dataProvider.get(nextSequence);</div><div class="line">                    eventHandler.onEvent(event, nextSequence, nextSequenceavailableSequence);</div><div class="line">                    nextSequence++;</div><div class="line">                &#125;</div><div class="line">                <span class="comment">// 处理完之后，设置自己最后处理完成的事件序号</span></div><div class="line">                sequence.set(availableSequence);</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> TimeoutException e) &#123;</div><div class="line">                <span class="comment">// 获取事件序号超时处理</span></div><div class="line">                notifyTimeout(sequence.get());</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> AlertException ex) &#123;</div><div class="line">                <span class="comment">// 处理通知事件；检测是否要停止，如果非则继续处理事件</span></div><div class="line">                <span class="keyword">if</span> (!running.get()) &#123;</div><div class="line">                    <span class="keyword">break</span>;</div><div class="line">                &#125;</div><div class="line">            &#125; <span class="keyword">catch</span> (<span class="keyword">final</span> Throwable ex) &#123;</div><div class="line">                <span class="comment">// 其他异常，用异常处理器处理；然后继续处理下一个事件</span></div><div class="line">                exceptionHandler.handleEventException(ex, nextSequence, event);</div><div class="line">                sequence.set(nextSequence);</div><div class="line">                nextSequence++;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125; <span class="keyword">finally</span> &#123;</div><div class="line">        notifyShutdown();</div><div class="line">        running.set(<span class="keyword">false</span>);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
                 <a class="post-title-link" href="/2017/04/07/disruptor/Producer/" itemprop="url">
-                  生产者生产数据
+                  生产者发布事件
                 </a>
               
             
@@ -446,7 +722,7 @@
 <h1 id="Sequencer"><a href="#Sequencer" class="headerlink" title="Sequencer"></a>Sequencer</h1><p>Sequencer 继承了 Cursored, Sequenced 接口的基础上，又定义了一些方法</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Sequencer</span> <span class="keyword">extends</span> <span class="title">Cursored</span>, <span class="title">Sequenced</span> </span>&#123;</div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Sequence 的初始值</div><div class="line">     */</div><div class="line">    <span class="keyword">long</span> INITIAL_CURSOR_VALUE = -<span class="number">1L</span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Claim a specific sequence.  Only used if initialising the ring buffer to</div><div class="line">     * a specific value.</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> sequence The sequence to initialise too.</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">claim</span><span class="params">(<span class="keyword">long</span> sequence)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 判断 RingBuffer 的 sequence 位置的槽是否可消费</div><div class="line">     * 等价于 RingBuffer 的 sequence 位置的槽 事件是否已发布</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isAvailable</span><span class="params">(<span class="keyword">long</span> sequence)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 添加一组消费者维护的序号 到控制序号组</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">void</span> <span class="title">addGatingSequences</span><span class="params">(Sequence... gatingSequences)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 从控制序号组中 移除一个指定的消费者序号</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">removeGatingSequence</span><span class="params">(Sequence sequence)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 创建一个序号栅栏</div><div class="line">     * 【后面分析】</div><div class="line">     */</div><div class="line">    <span class="function">SequenceBarrier <span class="title">newBarrier</span><span class="params">(Sequence... sequencesToTrack)</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 返回控制序号组中的最小序号</div><div class="line">     * 当控制序号组的数组长度为0时，返回 RingBuffer 的位置</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">long</span> <span class="title">getMinimumSequence</span><span class="params">()</span></span>;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Get the highest sequence number that can be safely read from the ring buffer.  Depending</div><div class="line">     * on the implementation of the Sequencer this call may need to scan a number of values</div><div class="line">     * in the Sequencer.  The scan will range from nextSequence to availableSequence.  If</div><div class="line">     * there are no available values &lt;code&gt;&amp;gt;= nextSequence&lt;/code&gt; the return value will be</div><div class="line">     * &lt;code&gt;nextSequence - 1&lt;/code&gt;.  To work correctly a consumer should pass a value that</div><div class="line">     * is 1 higher than the last sequence that was successfully processed.</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> nextSequence      The sequence to start scanning from.</div><div class="line">     * <span class="doctag">@param</span> availableSequence The sequence to scan to.</div><div class="line">     * <span class="doctag">@return</span> The highest value that can be safely read, will be at least &lt;code&gt;nextSequence - 1&lt;/code&gt;.</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">long</span> <span class="title">getHighestPublishedSequence</span><span class="params">(<span class="keyword">long</span> nextSequence, <span class="keyword">long</span> availableSequence)</span></span>;</div><div class="line"></div><div class="line">    &lt;T&gt; <span class="function">EventPoller&lt;T&gt; <span class="title">newPoller</span><span class="params">(DataProvider&lt;T&gt; provider, Sequence... gatingSequences)</span></span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 <h1 id="AbstractSequencer"><a href="#AbstractSequencer" class="headerlink" title="AbstractSequencer"></a>AbstractSequencer</h1><p>前面说过 Sequencer 是给生产者用的，AbstractSequencer 提供了基本的实现</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * 注意：这个对象是给【生产者(Producer)】用的</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractSequencer</span> <span class="keyword">implements</span> <span class="title">Sequencer</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 用来更新 控制序号组 这个字段</div><div class="line">     */</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;AbstractSequencer, Sequence[]&gt; SEQUENCE_UPDATER =</div><div class="line">            AtomicReferenceFieldUpdater.newUpdater(AbstractSequencer.class, Sequence[].class, <span class="string">"gatingSequences"</span>);</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * RingBuffer 的大小，2的指数次方</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">int</span> bufferSize;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 消费者的等待策略</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> WaitStrategy waitStrategy;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 维护 RingBuffer 的头部，</div><div class="line">     * 生产者会竞争这个对象</div><div class="line">     * 一个生产者，在生产 Event 时，</div><div class="line">     * 1. 先获取下一可写的位置</div><div class="line">     * 2. 填充 Event，</div><div class="line">     * 3. 填充好后再 publish</div><div class="line">     * 这之后，这个 Event 就可以被消费处理了</div><div class="line">     * 注意：一旦获取到序号后，如果没有填充 Event，将导致旧数据被重复消费</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> Sequence cursor = <span class="keyword">new</span> Sequence(Sequencer.INITIAL_CURSOR_VALUE);</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * RingBuffer 的头由一个名字为 Cursor 的 Sequence对象维护，⬆️</div><div class="line">     * 用来协调生产者向 RingBuffer 中填充数据。</div><div class="line">     * 表示队列尾的 Sequence 并没有在 RingBuffer 中，</div><div class="line">     * 而是由消费者维护，生产者为了防止数据被覆盖，需要跟踪消费者的消费信息</div><div class="line">     * 控制序号组 gatingSequences 来维护消费者的消费位置信息</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">volatile</span> Sequence[] gatingSequences = <span class="keyword">new</span> Sequence[<span class="number">0</span>];</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * <span class="doctag">@param</span> bufferSize   RingBuffer 的大小，2 的指数次</div><div class="line">     * <span class="doctag">@param</span> waitStrategy 等待策略</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">AbstractSequencer</span><span class="params">(<span class="keyword">int</span> bufferSize, WaitStrategy waitStrategy)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span> (bufferSize &lt; <span class="number">1</span>) &#123;</div><div class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"bufferSize must not be less than 1"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> (Integer.bitCount(bufferSize) != <span class="number">1</span>) &#123;</div><div class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"bufferSize must be a power of 2"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">this</span>.bufferSize = bufferSize;</div><div class="line">        <span class="keyword">this</span>.waitStrategy = waitStrategy;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 返回 RingBuffer 的当前位置</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">long</span> <span class="title">getCursor</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> cursor.get();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 获取 RingBuffer 的大小</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">int</span> <span class="title">getBufferSize</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> bufferSize;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 添加一组消费者维护的序号 到控制序号组</div><div class="line">     * 因为消费者需要在 Disruptor 启动之前添加的，</div><div class="line">     * 因此这个方法也只能在启动之前调用</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">addGatingSequences</span><span class="params">(Sequence... gatingSequences)</span> </span>&#123;</div><div class="line">        SequenceGroups.addSequences(<span class="keyword">this</span>, SEQUENCE_UPDATER, <span class="keyword">this</span>, gatingSequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 从控制序号组中 移除一个指定的消费者序号</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">removeGatingSequence</span><span class="params">(Sequence sequence)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> SequenceGroups.removeSequence(<span class="keyword">this</span>, SEQUENCE_UPDATER, sequence);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 返回控制序号组中的最小序号</div><div class="line">     * 当控制序号组的数组长度为0时，返回 RingBuffer 的位置</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getMinimumSequence</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> Util.getMinimumSequence(gatingSequences, cursor.get());</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * todo: 后续分析</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> SequenceBarrier <span class="title">newBarrier</span><span class="params">(Sequence... sequencesToTrack)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ProcessingSequenceBarrier(<span class="keyword">this</span>, waitStrategy, cursor, sequencesToTrack);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Creates an event poller for this sequence that will use the supplied data provider and</div><div class="line">     * gating sequences.</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> dataProvider    The data source for users of this event poller</div><div class="line">     * <span class="doctag">@param</span> gatingSequences Sequence to be gated on.</div><div class="line">     * <span class="doctag">@return</span> A poller that will gate on this ring buffer and the supplied sequences.</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">EventPoller&lt;T&gt; <span class="title">newPoller</span><span class="params">(DataProvider&lt;T&gt; dataProvider, Sequence... gatingSequences)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> EventPoller.newInstance(dataProvider, <span class="keyword">this</span>, <span class="keyword">new</span> Sequence(), cursor, gatingSequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="string">"AbstractSequencer&#123;"</span> +</div><div class="line">                <span class="string">"waitStrategy="</span> + waitStrategy +</div><div class="line">                <span class="string">", cursor="</span> + cursor +</div><div class="line">                <span class="string">", gatingSequences="</span> + Arrays.toString(gatingSequences) +</div><div class="line">                <span class="string">'&#125;'</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/**</span></div><div class="line"> * 注意：这个对象是给【生产者(Producer)】用的</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractSequencer</span> <span class="keyword">implements</span> <span class="title">Sequencer</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 用来更新 控制序号组 这个字段</div><div class="line">     */</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;AbstractSequencer, Sequence[]&gt; SEQUENCE_UPDATER =</div><div class="line">            AtomicReferenceFieldUpdater.newUpdater(AbstractSequencer.class, Sequence[].class, <span class="string">"gatingSequences"</span>);</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * RingBuffer 的大小，2的指数次方</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">int</span> bufferSize;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 消费者的等待策略</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> WaitStrategy waitStrategy;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 维护 RingBuffer 的头部，</div><div class="line">     * 生产者会竞争这个对象</div><div class="line">     * 一个生产者，在生产 Event 时，</div><div class="line">     * 1. 先获取下一可写的位置</div><div class="line">     * 2. 填充 Event，</div><div class="line">     * 3. 填充好后再 publish</div><div class="line">     * 这之后，这个 Event 就可以被消费处理了</div><div class="line">     * 注意：一旦获取到序号后，如果没有填充 Event，将导致旧数据被重复消费</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> Sequence cursor = <span class="keyword">new</span> Sequence(Sequencer.INITIAL_CURSOR_VALUE);</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * RingBuffer 的头由一个名字为 Cursor 的 Sequence对象维护，⬆️</div><div class="line">     * 用来协调生产者向 RingBuffer 中填充数据。</div><div class="line">     * 表示队列尾的 Sequence 并没有在 RingBuffer 中，</div><div class="line">     * 而是由消费者维护，生产者为了防止数据被覆盖，需要跟踪消费者的消费信息</div><div class="line">     * 控制序号组 gatingSequences 来维护消费者的消费位置信息</div><div class="line">     * 可想而知，当消费者添加到 Disruptor 时，这个数组就需要维护了</div><div class="line">     */</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">volatile</span> Sequence[] gatingSequences = <span class="keyword">new</span> Sequence[<span class="number">0</span>];</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * <span class="doctag">@param</span> bufferSize   RingBuffer 的大小，2 的指数次</div><div class="line">     * <span class="doctag">@param</span> waitStrategy 等待策略</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">AbstractSequencer</span><span class="params">(<span class="keyword">int</span> bufferSize, WaitStrategy waitStrategy)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span> (bufferSize &lt; <span class="number">1</span>) &#123;</div><div class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"bufferSize must not be less than 1"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> (Integer.bitCount(bufferSize) != <span class="number">1</span>) &#123;</div><div class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"bufferSize must be a power of 2"</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">this</span>.bufferSize = bufferSize;</div><div class="line">        <span class="keyword">this</span>.waitStrategy = waitStrategy;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 返回 RingBuffer 的当前位置</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">long</span> <span class="title">getCursor</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> cursor.get();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 获取 RingBuffer 的大小</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">int</span> <span class="title">getBufferSize</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> bufferSize;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 添加一组消费者维护的序号 到控制序号组</div><div class="line">     * 因为消费者需要在 Disruptor 启动之前添加的，</div><div class="line">     * 因此这个方法也只能在启动之前调用</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">addGatingSequences</span><span class="params">(Sequence... gatingSequences)</span> </span>&#123;</div><div class="line">        SequenceGroups.addSequences(<span class="keyword">this</span>, SEQUENCE_UPDATER, <span class="keyword">this</span>, gatingSequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 从控制序号组中 移除一个指定的消费者序号</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">removeGatingSequence</span><span class="params">(Sequence sequence)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> SequenceGroups.removeSequence(<span class="keyword">this</span>, SEQUENCE_UPDATER, sequence);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 返回控制序号组中的最小序号</div><div class="line">     * 当控制序号组的数组长度为0时，返回 RingBuffer 的位置</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getMinimumSequence</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> Util.getMinimumSequence(gatingSequences, cursor.get());</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * todo: 后续分析</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> SequenceBarrier <span class="title">newBarrier</span><span class="params">(Sequence... sequencesToTrack)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ProcessingSequenceBarrier(<span class="keyword">this</span>, waitStrategy, cursor, sequencesToTrack);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * Creates an event poller for this sequence that will use the supplied data provider and</div><div class="line">     * gating sequences.</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> dataProvider    The data source for users of this event poller</div><div class="line">     * <span class="doctag">@param</span> gatingSequences Sequence to be gated on.</div><div class="line">     * <span class="doctag">@return</span> A poller that will gate on this ring buffer and the supplied sequences.</div><div class="line">     */</div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">EventPoller&lt;T&gt; <span class="title">newPoller</span><span class="params">(DataProvider&lt;T&gt; dataProvider, Sequence... gatingSequences)</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> EventPoller.newInstance(dataProvider, <span class="keyword">this</span>, <span class="keyword">new</span> Sequence(), cursor, gatingSequences);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="meta">@Override</span></div><div class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> <span class="string">"AbstractSequencer&#123;"</span> +</div><div class="line">                <span class="string">"waitStrategy="</span> + waitStrategy +</div><div class="line">                <span class="string">", cursor="</span> + cursor +</div><div class="line">                <span class="string">", gatingSequences="</span> + Arrays.toString(gatingSequences) +</div><div class="line">                <span class="string">'&#125;'</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 <h1 id="SingleProducerSequencer"><a href="#SingleProducerSequencer" class="headerlink" title="SingleProducerSequencer"></a>SingleProducerSequencer</h1><p>SingleProducerSequencer 作为单个生产者用的，实际情况一般都是多生产者多消费者的情况</p>
 <p>单个生产者不会竞争 RingBuffer 的写操作</p>
 <p>SingleProducerSequencer 内部缓存了 RingBuffer 的下一个可写的位置 nextValue<br>还缓存了消费者消费的最小位置 cachedValue</p>
@@ -624,349 +900,6 @@
 
 
     
-      
-
-  
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2017/03/22/java/memory-allocate-md/" itemprop="url">
-                  java 对象内存计算
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            <span class="post-meta-item-icon">
-              <i class="fa fa-calendar-o"></i>
-            </span>
-            <span class="post-meta-item-text">发表于</span>
-            <time itemprop="dateCreated" datetime="2017-03-22T10:24:52+08:00" content="2017-03-22">
-              2017-03-22
-            </time>
-          </span>
-
-          
-            <span class="post-category" >
-              &nbsp; | &nbsp;
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-              
-                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
-                  <a href="/categories/java/" itemprop="url" rel="index">
-                    <span itemprop="name">java</span>
-                  </a>
-                </span>
-
-                
-                
-
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-
-          
-          
-
-          
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>3月19号去见了一个之前实习公司的同事，当他问我disruptor的时候，我突然懵逼了。<br>这个还是之前我和他布道的，真是惭愧，我和他的差距体现在，他听到这个东西后，回去体验他，而我仅仅是听说过而已。<br>当然作为一个非资深程序猿攻城狮，心服口难服(劳资不服)，因此回来后，马上拉了disruptor的源码。<br>悲剧是一连串发生的，看到第一个类是  RingBuffer，里面有个RingBufferPad，7个字段，其它什么都没有。<br>稍微搜了一下，发现和前几天我自己吹逼的cpu L1，L2，L3缓存有关，和jvm有关，因此才有了这篇文章。</p>
-<p>这篇文章讲的是如何计算一个java对象的内存，请听小仙细细道来。</p>
-<h1 id="java-内存计算"><a href="#java-内存计算" class="headerlink" title="java 内存计算"></a>java 内存计算</h1><p>java.lang.instrument.Instrumentation</p>
-<h1 id="java-对象的内存布局"><a href="#java-对象的内存布局" class="headerlink" title="java 对象的内存布局"></a>java 对象的内存布局</h1><p>这里抄一下 周志明 兄弟的《深入理解java虚拟机 jvm高级特性与最佳实践》（俺的jvm入门书籍）</p>
-<p><strong> <a href="http://www.infoq.com/cn/articles/jvm-hotspot" target="_blank" rel="external">http://www.infoq.com/cn/articles/jvm-hotspot</a> </strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">HotSpot虚拟机中，对象在内存中存储的布局可以分为三块区域：对象头（Header）、实例数据（Instance Data）和对齐填充（Padding）。</div><div class="line"></div><div class="line">HotSpot虚拟机的对象头包括两部分信息，</div><div class="line">第一部分用于存储对象自身的运行时数据，如哈希码（HashCode）、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等等，</div><div class="line">这部分数据的长度在32位和64位的虚拟机（暂不考虑开启压缩指针的场景）中分别为32个和64个Bits，官方称它为“Mark Word”。</div><div class="line">对象头的另外一部分是类型指针，即是对象指向它的类元数据的指针，虚拟机通过这个指针来确定这个对象是哪个类的实例。</div><div class="line">并不是所有的虚拟机实现都必须在对象数据上保留类型指针，换句话说查找对象的元数据信息并不一定要经过对象本身。</div><div class="line"></div><div class="line">如果对象是一个Java数组，那在对象头中还必须有一块用于记录数组长度的数据，</div><div class="line">因为虚拟机可以通过普通Java对象的元数据信息确定Java对象的大小，但是从数组的元数据中无法确定数组的大小。</div><div class="line"></div><div class="line">第三部分对齐填充并不是必然存在的，也没有特别的含义，它仅仅起着占位符的作用。</div><div class="line">由于HotSpot VM的自动内存管理系统要求对象起始地址必须是8字节的整数倍，换句话说就是对象的大小必须是8字节的整数倍。</div><div class="line">对象头部分正好似8字节的倍数（1倍或者2倍），因此当对象实例数据部分没有对齐的话，就需要通过对齐填充来补全。</div></pre></td></tr></table></figure>
-<p>那么根据这个理论知识，马上开始实践。</p>
-<p>之前俺对于数据库的原始对象，使用 int 和 Integer 很好奇，有什么规范可以遵循，以这个问题为由，查了一些知识<br>其中讲到一点：Integer 使用的内存是 int 的 4 倍！</p>
-<p>java中，int 是 4 字节的，而 Integer 呢？ 在32位虚拟机下，8(对象头)+4(域)+4(对齐填充)=16</p>
-<p>然后使用代码跑了一下，果然是 16 ：</p>
-<p><img src="/images/java/对象内存计算/ErrorIntegerSize.png" alt=""></p>
-<p>果然，哈哈哈！</p>
-<p>辣嚒，java.lang.Double呢？应该是 8(对象头)+8(域)=16，结果：</p>
-<p><img src="/images/java/对象内存计算/ErrorDoubleSize.png" alt=""></p>
-<p>雪崩啊，竟然是24，为毛！</p>
-<h1 id="32bit-amp-64bit"><a href="#32bit-amp-64bit" class="headerlink" title="32bit &amp; 64bit"></a>32bit &amp; 64bit</h1><p>又是一顿搜索，再结合周老师的理论，发现自己蠢了，理论上说32bit的和64bit的对象头是<strong>不一样</strong>的<br>查自己的机器：<br><img src="/images/java/对象内存计算/jvm.png" alt=""></p>
-<p>既然是64bit的虚拟机，那么计算方式是：16 + 8 = 24，咦，没问题！没问题？</p>
-<p>那么再来看 java.lang.Integer<br>内存应该是 16(对象头)+4(域)+4(对齐填充)=24，不是之前的结果</p>
-<p>完蛋了，问题粗在哪里呢。</p>
-<p>再查查查</p>
-<p>原来，64bit的虚拟机默认开启了指针压缩（周老师的理论也提到了，“暂不考虑开启压缩指针的场景”）<br>这个时候，对象头中的类型指针是4字节的</p>
-<p>OK，那么重新计算64bit下的java.lang.Integer和java.lang.Double的内存：</p>
-<p><strong>默认情况：开始指针压缩</strong></p>
-<p>-XX:+UseCompressedOops</p>
-<p>java.lang.Integer 12 + 4 + 0 = 16</p>
-<p>java.lang.Double  12 + 8 + 4 = 24</p>
-<p><img src="/images/java/对象内存计算/XX+UseCompressedOops.png" alt=""></p>
-<p><strong>不开启指针压缩</strong></p>
-<p>-XX:-UseCompressedOops</p>
-<p>java.lang.Integer 16 + 4 + 4 = 24</p>
-<p>java.lang.Double  16 + 8 + 0 = 24</p>
-<p><img src="/images/java/对象内存计算/XX-UseCompressedOops.png" alt=""></p>
-<h1 id="计算java对象内存"><a href="#计算java对象内存" class="headerlink" title="计算java对象内存"></a>计算java对象内存</h1><p>理论知识：<br>周老师提到了</p>
-<p>接下来实例数据部分是对象真正存储的有效信息，<br>也既是我们在程序代码里面所定义的各种类型的字段内容，<br>无论是从父类继承下来的，<br>还是在子类中定义的都需要记录起来。<br>这部分的存储顺序会受到虚拟机分配策略参数（FieldsAllocationStyle）和字段在Java源码中定义顺序的影响。<br>HotSpot虚拟机默认的分配策略为</p>
-<ol>
-<li>longs/doubles、</li>
-<li>ints、</li>
-<li>shorts/chars、</li>
-<li>bytes/booleans、</li>
-<li>oops（Ordinary Object Pointers），<br>从分配策略中可以看出，相同宽度的字段总是被分配到一起。<br><strong>在满足这个前提条件的情况下，在父类中定义的变量会出现在子类之前。</strong><br><strong>如果 CompactFields 参数值为true（默认为true），那子类之中较窄的变量也可能会插入到父类变量的空隙之中</strong></li>
-</ol>
-<p>前面只是提了很简单的情况，那么来计算下其它情况</p>
-<p>首先当实例数据很复杂的时候【其实我要开始挖坑了】</p>
-<p>3个类 A, B, C</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">A</span> </span>&#123;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">long</span> a1;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">int</span> a2;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">short</span> a3;</div><div class="line">    <span class="keyword">protected</span> <span class="keyword">byte</span> a4;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">B</span> <span class="keyword">extends</span> <span class="title">A</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">int</span> b1;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">byte</span> b2;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">C</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">long</span> a1;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">int</span> a2;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">short</span> a3;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">byte</span> a4;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">int</span> b1;</div><div class="line">    <span class="keyword">byte</span> b2;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>首先手工计算一下：<br>A:    12 + [8 + 4 + 2 + 1] + padding = 32字节<br>B:    12 +  [8 + 4 + 2 + 1] + 4 + 1 + padding = 32字节<br>C: 12 + 8 + 4 + 2 + 1 + 4 + 1 + padding = 32字节</p>
-<p>然后看程序的输出：<br><img src="/images/java/对象内存计算/output1.png" alt=""></p>
-<p>什么！B的内存怎么不对？</p>
-<p>这里还有一个坑，周老师讲的比较含糊，<br>虽然64位机器开始了指针压缩和CompactFields=true，但是只有相等长度的数据可以被放一起的，<br>否则按操作系统的要求会发生4字节对齐（我记得C语言就是这个样子的）</p>
-<p>这样子分析，再看B的内存计算<br>head + a2 + a1 + a3 + padding/4 + a4 + b2 + padding/4 + b1 + padding/8<br>B: 12 + [4 + 8 + 2 + 2(padding)  + 1 + 1 + 2(padding) + 4] + 4(padding) = 40字节</p>
-<p>不行吗？那么通过java中的Unsafe类来看下各个字段的位置偏移信息：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">long</span>	a1: <span class="number">16</span></div><div class="line"><span class="keyword">int</span>		a2: <span class="number">12</span></div><div class="line"><span class="keyword">short</span>	a3: <span class="number">24</span></div><div class="line"><span class="keyword">byte</span>	a4: <span class="number">26</span></div><div class="line"><span class="keyword">int</span>		b1: <span class="number">28</span></div><div class="line"><span class="keyword">byte</span>	b2: <span class="number">32</span></div></pre></td></tr></table></figure>
-<p><strong>还是对不上！</strong><br><strong>网上搜到这样子一段话：(<a href="https://www.liaohuqiu.net/cn/posts/caculate-object-size-in-java/" target="_blank" rel="external">https://www.liaohuqiu.net/cn/posts/caculate-object-size-in-java/</a>)</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">在32bit的虚拟机上：</div><div class="line">如果子类首个成员变量是 long 或者 double 等 8 字节数据类型，</div><div class="line">而父类结束时没有 8 位对齐。</div><div class="line">会把子类的小于 8 字节的实例成员先排列，</div><div class="line">直到能 8 字节对齐。</div></pre></td></tr></table></figure>
-<p>根据这一点，就解释了上面的例子了，哈哈哈，也是醉了。</p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="//schema.org/Article">
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2017/03/14/dubbo/dubbo registry 源码分析/" itemprop="url">
-                  dubbo registry 源码分析
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            <span class="post-meta-item-icon">
-              <i class="fa fa-calendar-o"></i>
-            </span>
-            <span class="post-meta-item-text">发表于</span>
-            <time itemprop="dateCreated" datetime="2017-03-14T20:32:24+08:00" content="2017-03-14">
-              2017-03-14
-            </time>
-          </span>
-
-          
-            <span class="post-category" >
-              &nbsp; | &nbsp;
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-              
-                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
-                  <a href="/categories/dubbo/" itemprop="url" rel="index">
-                    <span itemprop="name">dubbo</span>
-                  </a>
-                </span>
-
-                
-                
-
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-
-          
-          
-
-          
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="主要类图关系"><a href="#主要类图关系" class="headerlink" title="主要类图关系"></a>主要类图关系</h1><p><img src="/images/dubbo/main.class.png" alt=""></p>
-<h1 id="RegisterFactory"><a href="#RegisterFactory" class="headerlink" title="RegisterFactory"></a>RegisterFactory</h1><p><img src="/images/dubbo/RegistryFactory.png" alt=""></p>
-<p>RegisterFactory 是接口，只有一个方法，用来创建Register</p>
-<p>实现类有4个：</p>
-<ul>
-<li>DubboRegistryFactory</li>
-<li>==<strong>ZookeeperRegistryFactory</strong>==</li>
-<li>MulticastRegistryFactory</li>
-<li>RedisRegistryFactory<br>前三个工厂类又继承自抽象类 ==<strong>AbstractRegistryFactory</strong>==。<br>分别返回4种类型的 Registry：<br>DubboRegistry， <strong>==ZookeeperRegistry==</strong> ， MulticastRegistry，RedisRegistry。</li>
-</ul>
-<h1 id="Registry"><a href="#Registry" class="headerlink" title="Registry"></a>Registry</h1><p><img src="/images/dubbo/RegistryService.png" alt=""></p>
-<p>Registry 接口继承 RegistryService 接口，主要的5个方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">register</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unregister</span><span class="params">(URL url)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(URL url, NotifyListener listener)</span></span>;</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">unsubscribe</span><span class="params">(URL url, NotifyListener </span></span></div><div class="line">List&lt;URL&gt; lookup(URL url);</div></pre></td></tr></table></figure></p>
-<p>dubbo 注册中心的核心类主要是以上几个，下面分析加粗的几个类。</p>
-<hr>
-<h1 id="AbstractRegistry"><a href="#AbstractRegistry" class="headerlink" title="AbstractRegistry"></a>AbstractRegistry</h1><h2 id="字段解释"><a href="#字段解释" class="headerlink" title="字段解释"></a>字段解释</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// URL地址分隔符，用于文件缓存中，服务提供者URL分隔</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">char</span> URL_SEPARATOR = <span class="string">' '</span>;</div><div class="line"></div><div class="line"><span class="comment">// URL地址分隔正则表达式，用于解析文件缓存中服务提供者URL列表</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> String URL_SPLIT = <span class="string">"\\s+"</span>;</div><div class="line"></div><div class="line"><span class="comment">// 用来存储注册中心相关信息</span></div><div class="line"><span class="keyword">private</span> URL registryUrl;</div><div class="line"></div><div class="line"><span class="comment">// 本地磁盘缓存文件，注册中心保持了服务的信息，这个文件作为这些服务的本地文件缓存</span></div><div class="line"><span class="keyword">private</span> File file;</div><div class="line"></div><div class="line"><span class="comment">// 本地磁盘缓存，其中特殊的key值.registies记录注册中心列表，其它均为notified服务提供者列表</span></div><div class="line"><span class="comment">// Properties对象会读取本地磁盘缓存文件，也会将自身的信息刷入本地磁盘缓存文件</span></div><div class="line"><span class="comment">// 从代码的实现中可以看出，会有一个对应fileName.lock的文件来作为进程锁，对file进行写操作</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Properties properties = <span class="keyword">new</span> Properties();</div><div class="line"></div><div class="line"><span class="comment">// 文件缓存异步写入线程</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(<span class="number">1</span>, <span class="keyword">new</span> NamedThreadFactory(<span class="string">"DubboSaveRegistryCache"</span>, <span class="keyword">true</span>));</div><div class="line"></div><div class="line"><span class="comment">//是否是同步保存文件</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">boolean</span> syncSaveFile ;</div><div class="line"></div><div class="line"><span class="comment">// 相当于版本号的功能，防止旧的替换新的</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> AtomicLong lastCacheChanged = <span class="keyword">new</span> AtomicLong();</div><div class="line"></div><div class="line"><span class="comment">// 需要注册的服务集合</span></div><div class="line"><span class="comment">// 即使服务注册失败了，这个集合中仍有该服务的信息</span></div><div class="line"><span class="comment">// 但是如果服务取消注册了，将从这个集合中移除</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Set&lt;URL&gt; registered = <span class="keyword">new</span> ConcurrentHashSet&lt;URL&gt;();</div><div class="line"></div><div class="line"><span class="comment">// 需要订阅的服务集合</span></div><div class="line"><span class="comment">// 这个数据结构竟然是Map&lt;Key, Set&gt;的形式！</span></div><div class="line"><span class="comment">// 为什么value需要是一个Set&lt;NotifyListener&gt; 而不是一个NotifyListener！</span></div><div class="line"><span class="comment">// <span class="doctag">TODO:</span>求解释啊</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; subscribed = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line"></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, Map&lt;String, List&lt;URL&gt;&gt;&gt; notified = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, Map&lt;String, List&lt;URL&gt;&gt;&gt;();</div></pre></td></tr></table></figure>
-<hr>
-<p><strong>==构造器==</strong><br>构造器主要做了4件事：</p>
-<ol>
-<li>初始化一些参数</li>
-<li>创建了本地缓存文件的父级文件夹</li>
-</ol>
-<ul>
-<li>默认的文件是 <strong>==~/.dubbo/dubbo-registry-${ip}.cache”==</strong>，下面称为cache文件</li>
-<li>其中${ip}是dubbo自定义的url中获取的</li>
-<li>文件名中加入了ip的因素是因为dubbo可以采用多注册中心</li>
-<li>因此这个文件是对注册中心服务的缓存，而不是针对某一个服务提供者的</li>
-<li>对这个文件的操作采用了进程间锁，cache.lock来实现的，可以防止一个机器部署多个dubbo应用造成对这个文件并发操作</li>
-</ul>
-<ol>
-<li>加载上面那个位置的属性文件的数据</li>
-<li>执行notify，后面分析这个方法</li>
-</ol>
-<p><strong>dubbo register创建的文件</strong><br><img src="/images/dubbo/dubbo.cache.png" alt=""></p>
-<p>上图中，.cache结尾的是对注册中心的服务信息本地磁盘文件缓存<br>.lock是对.cache文件的进程间锁实现，所以这个文件没有任何数据</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">AbstractRegistry</span><span class="params">(URL url)</span> </span>&#123;</div><div class="line">    setUrl(url);</div><div class="line">    <span class="comment">// 启动文件保存定时器</span></div><div class="line">    syncSaveFile = url.getParameter(Constants.REGISTRY_FILESAVE_SYNC_KEY, <span class="keyword">false</span>);</div><div class="line">    String filename = url.getParameter(Constants.FILE_KEY, System.getProperty(<span class="string">"user.home"</span>) + <span class="string">"/.dubbo/dubbo-registry-"</span> + url.getHost() + <span class="string">".cache"</span>);</div><div class="line">    File file = <span class="keyword">null</span>;</div><div class="line">    <span class="keyword">if</span> (ConfigUtils.isNotEmpty(filename)) &#123;</div><div class="line">        file = <span class="keyword">new</span> File(filename);</div><div class="line">        <span class="keyword">if</span>(! file.exists() &amp;&amp; file.getParentFile() != <span class="keyword">null</span> &amp;&amp; ! file.getParentFile().exists())&#123;</div><div class="line">	    <span class="comment">// 创建父级文件夹，如果失败，抛出异常</span></div><div class="line">            <span class="keyword">if</span>(! file.getParentFile().mkdirs())&#123;</div><div class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Invalid registry store file "</span> + file + <span class="string">", cause: Failed to create directory "</span> + file.getParentFile() + <span class="string">"!"</span>);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">this</span>.file = file;</div><div class="line">    loadProperties();</div><div class="line">    notify(url.getBackupUrls());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>dubbo在使用过程中，采用了注册中心，而注册中心即可以是分布式系统，也可以是单节点，为了避免单点问题，dubbo消费者缓存了提供者的信息。从构造器中看出，dubbo不仅内存中缓存了服务提供者的信息，而且还通过本地磁盘文件缓存这些信息！这样子，即使注册中心宕机了，只要服务提供者依然可用，消费者仍然可以调用提供者的服务，提高了系统的可用性。<br>问题：本地文件缓存用了一个线程去保存，但是感觉没什么必要，完全可以内存中保存。<br>dubbo文档对这个的解释如下：【我感觉画蛇添足的作用】<br><img src="/images/dubbo/dubbo.cache.intro.png" alt=""></p>
-<p><strong>AbstractRegistry#doSaveProperties(long version)</strong><br>该方法主要用来主动加载本地磁盘缓存的数据，即加载cache文件中的属性，加载完成之后，结合本地的属性值，全量写入到cache文件中，同时失败的话(多jvm实例下，获取不到进程锁，进程锁通过.cache.lock实现)，通过执行器(执行器是单线程)异步重试。</p>
-<p><strong>AbstractRegistry#notify(List<url> urls)</url></strong><br>// TODO:<br>结合RegistryDirectory#notify【consumer】和RegistryProtocol$OverrideListener#notify【provider】方法讲</p>
-<hr>
-<h1 id="FailbackRegistry"><a href="#FailbackRegistry" class="headerlink" title="FailbackRegistry"></a>FailbackRegistry</h1><p>failback<br>出故障时，自动恢复<br>failover<br>出故障时，设备失效</p>
-<h2 id="字段"><a href="#字段" class="headerlink" title="字段"></a>字段</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">// 定时任务执行器</div><div class="line">private final ScheduledExecutorService retryExecutor = Executors.newScheduledThreadPool(1, new NamedThreadFactory(&quot;DubboRegistryFailedRetryTimer&quot;, true));</div><div class="line"></div><div class="line">// 失败重试定时器，定时检查是否有请求失败，如有，无限次重试</div><div class="line">private final ScheduledFuture&lt;?&gt; retryFuture;</div><div class="line"></div><div class="line">/**</div><div class="line">* 一下5个集合针对 RegistryService 接口的5个方法操作失败情况下</div><div class="line">* 记录下操作失败的URL，然后使用重试任务异步重试</div><div class="line">*/</div><div class="line">// 注册失败的接口</div><div class="line">private final Set&lt;URL&gt; failedRegistered = new ConcurrentHashSet&lt;URL&gt;();</div><div class="line">// 取消注册失败的接口</div><div class="line">private final Set&lt;URL&gt; failedUnregistered = new ConcurrentHashSet&lt;URL&gt;();</div><div class="line">// 订阅失败的接口</div><div class="line">private final ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; failedSubscribed = new ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line">// 取消订阅失败的接口</div><div class="line">private final ConcurrentMap&lt;URL, Set&lt;NotifyListener&gt;&gt; failedUnsubscribed = new ConcurrentHashMap&lt;URL, Set&lt;NotifyListener&gt;&gt;();</div><div class="line">private final ConcurrentMap&lt;URL, Map&lt;NotifyListener, List&lt;URL&gt;&gt;&gt; failedNotified = new ConcurrentHashMap&lt;URL, Map&lt;NotifyListener, List&lt;URL&gt;&gt;&gt;();</div></pre></td></tr></table></figure>
-<h2 id="构造方法"><a href="#构造方法" class="headerlink" title="构造方法"></a>构造方法</h2><p>每隔一定的时间去检查5个集合中的操作失败的服务，然后尝试执行。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="title">FailbackRegistry</span><span class="params">(URL url)</span> </span>&#123;</div><div class="line">    <span class="keyword">super</span>(url);</div><div class="line">    <span class="comment">// 每隔 $&#123;retryPeriod&#125; 毫秒，都会去重试，默认每隔5000毫秒</span></div><div class="line">    <span class="keyword">int</span> retryPeriod = url.getParameter(Constants.REGISTRY_RETRY_PERIOD_KEY, Constants.DEFAULT_REGISTRY_RETRY_PERIOD);</div><div class="line">    <span class="comment">// 提交一个异步任务</span></div><div class="line">    <span class="keyword">this</span>.retryFuture = retryExecutor.scheduleWithFixedDelay(<span class="keyword">new</span> Runnable() &#123;</div><div class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</div><div class="line">            <span class="keyword">try</span> &#123;</div><div class="line">                retry();</div><div class="line">            &#125; <span class="keyword">catch</span> (Throwable t) &#123; <span class="comment">// 防御性容错</span></div><div class="line">                logger.error(<span class="string">"Unexpected error occur at failed retry, cause: "</span> + t.getMessage(), t);</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">    &#125;, retryPeriod, retryPeriod, TimeUnit.MILLISECONDS);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>看 <strong>==retry==</strong> 方法，对于5个失败的集合，分别执行方法<br>doRegister<br>doUnregister<br>doSubscribe<br>doUnsubscribe<br>listener.notify()</p>
-<p>而doXXX方法是由子类实现的</p>
-<hr>
-<h1 id="ZookeeperRegistry"><a href="#ZookeeperRegistry" class="headerlink" title="ZookeeperRegistry"></a>ZookeeperRegistry</h1><p><strong>很关键</strong></p>
-<h2 id="字段-1"><a href="#字段-1" class="headerlink" title="字段"></a>字段</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// zk的默认端口</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> <span class="keyword">int</span> DEFAULT_ZOOKEEPER_PORT = <span class="number">2181</span>;</div><div class="line"></div><div class="line"><span class="comment">// dubbo默认在zk下创建的根结点是 /dubbo, 其它所有节点都是这个节点的子节点</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> String DEFAULT_ROOT = <span class="string">"dubbo"</span>;</div><div class="line"><span class="comment">// 默认情况下 root 就是 /dubbo</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> String        root;</div><div class="line"></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> Set&lt;String&gt; anyServices = <span class="keyword">new</span> ConcurrentHashSet&lt;String&gt;();</div><div class="line"></div><div class="line"><span class="comment">// key 是具体的服务， value是这些服务的watch抽象</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;URL, ConcurrentMap&lt;NotifyListener, ChildListener&gt;&gt; zkListeners = <span class="keyword">new</span> ConcurrentHashMap&lt;URL, ConcurrentMap&lt;NotifyListener, ChildListener&gt;&gt;();</div><div class="line"></div><div class="line"><span class="comment">// zk client    </span></div><div class="line"><span class="keyword">private</span> <span class="keyword">final</span> ZookeeperClient zkClient;</div></pre></td></tr></table></figure>
-<h2 id="构造方法-1"><a href="#构造方法-1" class="headerlink" title="构造方法"></a>构造方法</h2><ol>
-<li>调用父类的构造方法，即执行了AbstractRegistry，FailbackRegistry</li>
-<li>初始化dubbo的根结点，默认是/dubbo，实际使用中，这个参数一般使用默认值</li>
-<li>zkClient连接zk集群【异步】</li>
-<li>添加一个watch，当连接建立后，会执行 recover方法<br>这个watch中对连接建立后的异步处理是：<br>zk连接异步建立，可能需要很长时间（dubbo服务已经开始发布和订阅【dubbo与zk建立连接需要时间】，甚至发布和订阅已经执行完了，但是zk集群竟然都没启动），这时候对之前的服务需要重新发布与订阅，但是这个动作是交给FailbackRegistry的重试任务去执行的。</li>
-</ol>
-<h2 id="doRegister"><a href="#doRegister" class="headerlink" title="doRegister"></a>doRegister</h2><p>在zk上创建一个临时节点</p>
-<h2 id="doUnregister"><a href="#doUnregister" class="headerlink" title="doUnregister"></a>doUnregister</h2><p>在zk上删除一个临时节点</p>
-<h2 id="doSubscribe"><a href="#doSubscribe" class="headerlink" title="doSubscribe"></a>doSubscribe</h2><p>即使是服务提供者，也会订阅节点configurators，因此这个方法消费者和提供者都会用到。</p>
-<ul>
-<li>对于consumer，传入的是 RegistryDirectory 类型</li>
-<li>对于provider，传入的是 OverrideListener 类型</li>
-</ul>
-<p>方法的参数：url，接口；NotifyListener，其实就是watch的抽象</p>
-<p>分析代码段<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 只监听指定的分组</span></div><div class="line"><span class="comment">/**</span></div><div class="line"> * provider 会监听 /dubbo/api/configurators 节点</div><div class="line"> * consumer 会监听 /dubbo/api/下的3个节点【providers, configurators, routers】</div><div class="line"> */</div><div class="line">List&lt;URL&gt; urls = <span class="keyword">new</span> ArrayList&lt;URL&gt;();</div><div class="line"><span class="keyword">for</span> (String path : toCategoriesPath(url)) &#123; <span class="comment">// path是需要监听的节点，如 /dubbo/$&#123;interfaceName&#125;/provider</span></div><div class="line">    ConcurrentMap&lt;NotifyListener, ChildListener&gt; listeners = zkListeners.get(url);</div><div class="line">    <span class="keyword">if</span> (listeners == <span class="keyword">null</span>) &#123;</div><div class="line">        zkListeners.putIfAbsent(url, <span class="keyword">new</span> ConcurrentHashMap&lt;NotifyListener, ChildListener&gt;());</div><div class="line">        listeners = zkListeners.get(url);</div><div class="line">    &#125;</div><div class="line">    ChildListener zkListener = listeners.get(listener);</div><div class="line">    <span class="keyword">if</span> (zkListener == <span class="keyword">null</span>) &#123;</div><div class="line">        listeners.putIfAbsent(listener, <span class="keyword">new</span> ChildListener() &#123;</div><div class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">childChanged</span><span class="params">(String parentPath, List&lt;String&gt; currentChilds)</span> </span>&#123;</div><div class="line">                ZookeeperRegistry.<span class="keyword">this</span>.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));</div><div class="line">            &#125;</div><div class="line">        &#125;);</div><div class="line">        zkListener = listeners.get(listener);</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 这个节点不存在的话，创建它</span></div><div class="line">    zkClient.create(path, <span class="keyword">false</span>);</div><div class="line">    <span class="comment">// 监听这个节点</span></div><div class="line">    <span class="comment">// 因此这个几点发生变化，真正执行的是代码是：</span></div><div class="line">    <span class="comment">// 上面的 ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));</span></div><div class="line">    List&lt;String&gt; children = zkClient.addChildListener(path, zkListener);</div><div class="line">    <span class="keyword">if</span> (children != <span class="keyword">null</span>) &#123;</div><div class="line">        urls.addAll(toUrlsWithEmpty(url, path, children));</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 对于provider和consumer，执行</span></div><div class="line">notify(url, listener, urls);</div></pre></td></tr></table></figure></p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
   </section>
 
   
@@ -1012,7 +945,7 @@
         <nav class="site-state motion-element">
           <div class="site-state-item site-state-posts">
             <a href="/archives">
-              <span class="site-state-item-count">11</span>
+              <span class="site-state-item-count">13</span>
               <span class="site-state-item-name">日志</span>
             </a>
           </div>
